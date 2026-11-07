@@ -15,6 +15,8 @@ Open `index.html` in any modern browser. It's a single self-contained file: no b
 
 ## What's in the game
 
+- **First-person dungeon floors** in the spirit of Wizardry: each floor is a randomly generated maze seen in a 2.5D corridor view. Tap Forward to auto-walk to the next junction or object, use the automap, open chests (some trapped, some Mimics), pray at shrines, rest at campfires, trade with a wandering merchant, and decide whether to take the stairs down or keep exploring. Floors roll their own prefixes and suffixes (Dark, Infested, Haunted, Flooded, of Riches, of Spinners, of Traps, of Fog, and more).
+
 - **104 monsters** across ants, spiders, flying insects, crawlers, rats, snakes, bears, humanoids (goblinoids, orcs, outlaws, warriors, spellcasters, beastfolk, archers, clerics), undead and dragons. Each has a species trait and an ability pool for its family.
 - **Monster affixes:** 29 prefixes and 21 suffixes, good and bad, including humanoid-only prefixes (Dark, Evil, Hideous, Bulked, Avenged, Holy).
 - **Gear in 8 slots** (weapon, shield, head, body, hands, feet, neck, ring), with cloth, light and heavy armor builds, two-handed weapons, and dozens of positive, negative and mixed item affixes.
@@ -33,6 +35,7 @@ art-tools/          Python scripts that generate the 48x48 monster sprites
   folk1.py-folk3.py Hand-built humanoids, one function per character
   humans.py         Older template humanoid generator (also newfolk.py)
   dragons.py        Parametric dragon generator
+  objects.py        Dungeon objects: chest, stairs, shrine, campfire, merchant
 ```
 
 ## Adding content
