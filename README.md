@@ -29,7 +29,9 @@ art-tools/          Python scripts that generate the 48x48 monster sprites
   pxlib.py          Shape masks, shading, outlines and sprite-sheet helpers
   monsters.py       Original fantasy monsters (also revise.py, final.py)
   bears.py, bugs.py, ratsnakes.py, ants.py
-  humans.py         Parametric humanoid generator (also newfolk.py)
+  hk.py             Character toolkit: stances, garments, faces, hair, capes, weapons
+  folk1.py-folk3.py Hand-built humanoids, one function per character
+  humans.py         Older template humanoid generator (also newfolk.py)
   dragons.py        Parametric dragon generator
 ```
 
