@@ -15,7 +15,7 @@ Open `index.html` in any modern browser. It's a single self-contained file: no b
 
 ## What's in the game
 
-- **First-person dungeon floors** in the spirit of Wizardry: each floor is a randomly generated maze seen in a 2.5D corridor view. Tap Forward to auto-walk to the next junction or object, use the automap, open chests (some trapped, some Mimics), pray at shrines, rest at campfires, trade with a wandering merchant, and decide whether to take the stairs down or keep exploring. Floors roll their own prefixes and suffixes (Dark, Infested, Haunted, Flooded, of Riches, of Spinners, of Traps, of Fog, and more).
+- **Room-map dungeon floors:** each floor is a randomly generated web of connected rooms on a scrollable map. Tap a connected room to move (or a farther known room to travel there through safe rooms). Rooms can hold monsters, treasure chests (some trapped, some Mimics), trap rooms you disarm or dash through, shrines, campfires, a wandering merchant, and the stairs down. Rooms next to ones you've visited show what's inside, so you can choose your route. Floors roll their own prefixes and suffixes (Dark, Infested, Haunted, Flooded, of Riches, of Ambush, of Traps, of Mists, and more).
 
 - **104 monsters** across ants, spiders, flying insects, crawlers, rats, snakes, bears, humanoids (goblinoids, orcs, outlaws, warriors, spellcasters, beastfolk, archers, clerics), undead and dragons. Each has a species trait and an ability pool for its family.
 - **Monster affixes:** 29 prefixes and 21 suffixes, good and bad, including humanoid-only prefixes (Dark, Evil, Hideous, Bulked, Avenged, Holy).
@@ -35,7 +35,7 @@ art-tools/          Python scripts that generate the 48x48 monster sprites
   folk1.py-folk3.py Hand-built humanoids, one function per character
   humans.py         Older template humanoid generator (also newfolk.py)
   dragons.py        Parametric dragon generator
-  objects.py        Dungeon objects: chest, stairs, shrine, campfire, merchant
+  objects.py        Dungeon objects: chest, stairs, shrine, campfire, merchant (plus objects2.py: trap, entrance)
 ```
 
 ## Adding content

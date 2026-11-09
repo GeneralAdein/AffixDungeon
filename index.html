@@ -507,22 +507,42 @@ svg[shape-rendering]{display:block}
 @keyframes redflash{0%{filter:sepia(1) saturate(5) hue-rotate(-35deg) brightness(1.2)}100%{filter:none}}
 
 
-/* ===== Exploration screen ===== */
+/* ===== Exploration: room map ===== */
 .floorbar .fname{background:none;border:0;color:var(--rare);font-size:18px;padding:0;text-align:right;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dun.explore{height:100%;min-height:540px}
-.viewwrap{position:relative;flex:1 1 auto;min-height:0;margin:6px 12px 0;border:2px solid var(--frame);background:#030305}
-#dview{display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated;cursor:pointer}
-#amap{position:absolute;right:6px;top:6px;width:28%;max-width:116px;image-rendering:pixelated;border:2px solid rgba(201,191,166,.55);cursor:pointer}
-.xmsg{height:3.4em;margin:6px 16px 0;font-size:20px;line-height:1.1;color:var(--muted);overflow:hidden;flex:none}
-.xmsg b{color:var(--ink);font-weight:400}
-.ctx{display:grid;grid-template-columns:1fr 1fr;gap:6px;height:46px;margin:2px 0 8px}
-.ctx .btn{min-height:46px}
+.dun.explore{height:100%;min-height:520px}
+.roommap{position:relative;flex:1 1 auto;min-height:0;margin:6px 12px 0;border:2px solid var(--frame);overflow:auto;display:flex;background-color:#0b0b10;background-image:linear-gradient(rgba(6,6,10,.84),rgba(6,6,10,.84)),var(--floor);background-size:auto,96px 96px;image-rendering:pixelated;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.mapinner{position:relative;flex:none;margin:auto}
+.ln{position:absolute;background:#3a3848}
+.ln.h{height:4px}
+.ln.v{width:4px}
+.ln.walked{background:#b8ae94}
+.room{position:absolute;width:62px;height:62px;padding:0;border:2px solid #45414f;background:#14131b;display:grid;place-items:center;cursor:pointer;clip-path:var(--notch);color:#c9bfa6}
+.room img{width:46px;height:46px;image-rendering:pixelated}
+.room .q{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:24px;color:#6a667a}
+.room.seen{background:#1d1b26;border-color:#6a6478}
+.room.adj{border-color:#e8dcb8;background:#24212e}
+.room.here{border-color:#e0743a;background:#2c1d14;box-shadow:inset 0 0 0 2px #e0743a}
+.room.danger{border-color:#d8383a}
+.room.danger.magic{border-color:#76a2ff}
+.room.danger.rare{border-color:#f2c444}
+.room.done img{opacity:.35;filter:grayscale(1)}
+.room[aria-disabled="true"]{cursor:default}
+.room:active{transform:translateY(2px)}
+.room .rl{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:13px;line-height:1.05;color:#d8d0bc;background:rgba(6,6,10,.8);padding:1px 0}
+.room .you{position:absolute;top:0;left:0;right:0;text-align:center;font-size:12px;line-height:1.1;background:#e0743a;color:#121119}
+.xactions{padding-top:8px}
+.rpanel{display:flex;gap:10px;align-items:center;height:86px;overflow:hidden}
+.rart{width:72px;height:72px;flex:none;background:#0b0b10;border:2px solid var(--line);display:grid;place-items:center}
+.rart img{width:64px;height:64px;image-rendering:pixelated}
+.rtext{min-width:0;flex:1}
+.rtext h3{font-size:18px;line-height:1.1}
+.rpanel.r-magic .rtext h3 .afx{color:var(--magic)}
+.rpanel.r-rare .rtext h3 .afx{color:var(--rare)}
+.rtext p{font-size:18px;line-height:1.1;color:var(--muted);margin-top:3px;max-height:3.3em;overflow:hidden}
+.ctx{display:grid;grid-template-columns:1fr 1fr;gap:6px;height:48px;margin:8px 0 2px}
+.ctx .btn{min-height:48px}
 .ctx .span2{grid-column:1/-1}
 .ctx .idle{grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:var(--muted);border:2px dashed var(--line);font-size:18px}
-.dpad{display:grid;grid-template-columns:1fr 1.35fr 1fr 1fr;gap:6px}
-.dpad .btn{min-height:50px;font-size:19px;padding:4px 2px}
-.bigmapwrap{display:flex;justify-content:center;margin:8px 0}
-#bigmap{width:min(100%,360px);image-rendering:pixelated;border:2px solid var(--frame)}
 
 @media (prefers-reduced-motion: reduce){
   .bob,.ghost,.aura,.parts span,.thorn-ring,.fx-frenzied .bob,.fx-ghostly .bob,.sfx-clumsiness .bob{animation:none !important}
@@ -1209,7 +1229,7 @@ function newGame(){
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function load(){
-  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; if(S.run && !S.run.floor) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
+  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
   return false;
 }
 
@@ -1467,7 +1487,7 @@ function render(){
   else if(S.screen==='tavern') v.innerHTML = tavernView();
   else v.innerHTML = townView();
   if(S.run && S.run.phase==='combat') updateCombatUI();
-  if(S.run && S.run.phase==='explore') drawExplore();
+  if(S.run && S.run.phase==='explore') centerMap(false);
 }
 function itemRow(it, ctx, right=''){
   return `<div class="row r-${it.rarity}"><button class="rowmain" data-act="item" data-arg="${it.uid}|${ctx}">
@@ -1959,318 +1979,254 @@ function rerenderStats(){ const sh = $('#sheet'), top = sh.scrollTop; sh.innerHT
 const TILE_WALL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAACKklEQVR42s1WS2vDMAxWTS6LnTSshNLuxQ5lbIdddtr//xE7jq6wEcKgWZXkuoNAaJKd9lKYDyEWeln+PsmzzcOLD3MAAIAeO/6327bZjQM+Pb/iYS91lqs7KWH50P+MA2Y+zNtml/uSfPXYKT1liYc9Gee+JEnztYX0cgBAqsoX5y4PQUt6j5roAHJ9t58qd3uIqHcuiw4QikruF/WaY6isJ7Z8Ahvb4WEfPZpylPuSjaPeo2cFgNnV9UYdP2UPAOOAF3mAk9c44OzycgXnXNmiXlOJQlExBMcBb+8fU3VQJSV+pPQzrp2tYLSmLCewKmIeh+lR/DDeFXtS2ThpFsUig4cUiPmcOJtE+fgnwFFC9djlvuSvgi+zjGlEgHQ+zDl4iqLRupE7/lmu7sh8Ua9lirOr643F/ul4J9sJ/fPzgPArL0BdFwN/Gu+8QlE1X1vCwjhgJr0TtNWWXMvrUfNAcqJtdopVTnU0mUu9vLENKjo2GEisyfqOHFkSKF+SDXLbY/fdfk70YxeKqseOgnNkBl+0xEqyqNcf728p9jg5r7mysvur7Ehfhb/IA0kspfQ8ONrf/988ULiemAdMCJocVl+NClLLLKjlJJFyH+Z2cqjL4Bg9dmTu6Clg2691YdttFGmESb5np5KSKdM/0Y0ysB5ZPxRVNLnkRKOQtiwpTuFhb2mc+9Kl3n7Rp2ruy7bZTTzxbOfPZECekeOA0tEppbf6pHZ2HvwCp8Tb2/DcAdUAAAAASUVORK5CYII=";
 const TILE_FLOOR = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAACCElEQVR42q1WUWsCMQzWcg9e64kguoG4DYSBz/v/v8YXRQThTK+Pe8jIPtO06lgRuWtyaZrk+5Lx+8fOhy5Sv3zZ0PUyytb5dEiJ1pttpN6HblReYTqn64X/5cOGrQ+RTse9PLc+mCYi9ZUDWCo6rQ8pkZMXkbU+DJHks9JhdxcbcaYAjeJhlSXRU/qOtzC4aL0e9Dw+6Bw/uDCdtz6cT4engj5E4p/yWqyL1HHGS4E248ObrQ/KWVyy0zwS1pSIr4j5fzA349Xq7a5SSjT66xrPZouS7HP3dTru8SomlNabrewgGH+Att5sVVZ96FhG1wtXhaQaoYQhYj/YFVUXTV4q+JpnTwpR4bFUde7xsuG7s3UppLu158zyUkhGIkG1UiEtlq/2ASbc1WG50TCdq6/QFYd2K2TpQ+dDh+CSJSQvjusQiV0fOpTheficX4J3TP9cpQaQ6YZIOZ2Vig1fGzHKX6JMMaBJbQrkbATR0OTQkEDdZQhW4CZYKoQG3WRBhcUU7JXvpkPNs0RWb8s4G/xykVCVaUsmgZSoPhJg8m76gVCVyTmoza7VeULRlCthuNKtVGvMIYm3dBIN0y8z4Ug1+fGRetx09fnH3Kzn2aAKiY+C7iOjUT7XqCq44SJsVZiop4Y7pexyB1V669ND3g0Vkm+mCrMLIjFMJqFSlLlCSlSbKv5lfQMr0twABFXX0wAAAABJRU5ErkJggg==";
 const OART = {"chest": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACBklEQVR42u1Zv0tCURg9zyQMJFoMA9vKJZKGNzo0NTU4iEHYbku1K0Zhuzr5B0RQNDpJQ0FjgxihZUsoGekgFShR2KTo4z3vfffd91S6Z3u/zj3n3u9+33d5gICAgICAgIDA/4XEg8Rhn+6wfNf++ZZGYkApOBr0Mg1+cvlk2JjEIvwu4xu4v35wj/3NZSYTqWwZ18nVgXtypEBtwqZHfDTohdMxyFssNbjGdJePNixtesRrDcZbvNMhIRr0Upmw6REfyyQsyy4vb5/gGkKxTAKJSMwS8fXqOfW71AasEg8ALs8WACDsXyCGkQ0TDrvVMcsbE78CE29AIqVQZeECgPnZ34Hr948pQyJIfF/tjmZlloaJV7YMo0Kx1MBO8lXVhN2MAUPxvOazi+M1purMlIVYWoXDs+pQkaF4HkfbHmq+h+emsTRKImCZTZ6cpmzibnu8sVcAAOTSvp743UyN6yYmroCyz09ly70Q6RfVfS+VLRNDsZ9Tiy8guwEAlXoLN49N8yuxGnJpnyltt2UGzBRueiW2QrxpK6CVbVaW5sa/Gw3IbtVMAwC4aiEgu3V1rouuGYBlE2udg2nQzSC8EPYv4PS21lFLpaKdtgKVekscaEZ6bORiYBzFUxsYpfhh8U+sA/3ClUTKYkUaSG/xo+Wzs8wA777eCB/xPDAusc7jZ4iAGfgDitX4ilgHLYoAAAAASUVORK5CYII=", "stairs": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABv0lEQVR42u1WMWvCQBR+kaN0ELtIR0kdOrvUqYgVB6EgTg6dpL+lP6SzkwQKRSQtpZOFIh06dLCtgxySoaaLlMJ1kFh7uYScJrmEvg8Cconv+7537907AAQCgUAgEIjowHpVM/W8aEIVL+tVTdbRGevoLG7RQXmJ79ve2wm09GVQAAYt/UZr3dYidxAWL+vojH1cLp8YdyFUXhUlJMPrW0K7ZIddLLKr34vvLy0O8TK8mSAB3+mnkhkUhDcDKQcaQANoAA2ggf9tgPiNc34aOmtxT2GHV3SlIF7i22fnYBjd37VsFprNdiziRbyUTuHOvHbdizQ/A3wwFXDEW9YMnp8eXbtAggQwjC7Y9jx28bncHlA6lWvi9ewnCfn8PlRqDVcfEtlA9fpp5GIHgyvhumXN5I9RVeUDAGDbcxgO7z3Fb7QDXtlJxByQqf9S6Sh0MaPRg28PAABUao0/x2nqJjFfSmTT+vfLVhR9UC4fC/uAbEtQKBxsLXIyed3+MpfU85/vA34eEJXZC6MPhE1M6VTp+S8zDzIi8Wk5gVa3Uaf+HfHOh+PxS2LEF4uHrn7o9w2NrGeed8j/Kem7kUr8ALqnBxdbmdywAAAAAElFTkSuQmCC", "shrine": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAB9UlEQVR42mNgGAXDHCz48P8EMWKD1rGjYKAABwvbf2Q8aGMN3QEwBz/48R8FE/IIuYCR2qF+48tPnPLzXzAwdKqwM/z484tq9jLRK6bmv6CNuUy0Cn15duyOL7/zk4GaSYlmMfDwJ21DHgZY6JlsVs9aPTg8sODD/xMJAowWpKRzWjie7CSEzfE//vxi7FRhJ+j4e10xOEshcuoEmiYhUkMdW8DQvB7AVaIolS1B4d/risFpBiX1AiOljg+LSsIqt2nTKhS+n18YVnUvXjxjOLRvB9meoFkSwuVgdMcPmZqYFo4fMA8gO/7Nm1eD1wOKTdMZFJum0yTkByQGqO14unqAFo6nSSmEnmTgSQnKPp7mP3STEDqgNAPTJAbu12VixAa1Q52qMfDixTOy0jc1Qp9iD/z484vx0L4dFDng2qVzFLWFqJIHJCSkSNYjIiI29DPxqAdGPTAIAM36Ay9ePGN4QcPyn6YxQKt2D108QE/HU90DpDieWjUxyXkA2ygEpT0sdDNJqZlZSLUIfRQCefSBLMfz8KAMAEBHKf4T6wmKSyE/vzCMIRRyRy/IyT9UKUaJGUIZ8EyMbxCL2gWAnZMH0XMILPQufQZNTUxLR5NSGDANxhAnpa/ASGr6hzmeWhURPg8QM+jLQmqo09Lh1K6lhwQAAAXm/de1OjxvAAAAAElFTkSuQmCC", "campfire": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABwUlEQVR42mNgGAWjYBSMghEF/m9wWDUaCqOhPApGwWh+GAWDP+ksMNg3mrRGwWhpQzgvjIJRMApGM/bQBozUClHGhAtOKGIBCv9RLNrwgHHQegCfwzEspLJHmOjpeGLVDJgHhmwewBqyAQKoCjZ8oElSok0MoDsehxg1ilNGqoc+NsfjiAlqxMKQzwMsNDM5oAAt5CfQxBommqd9ctSMJiEcgIOFDZ5Zf/z5RdUalVyzWUixoDpEDc5vXXMLbiHnlmcM332kICUMkaUQ55ZnKI5GN5tYT7CQ43h0CyHB9oWkEMfQjwRibCQZlhx5TpQnqJ8HYOU8cqkDY6PVxtjAwxefaVORYYsFdFADiwVcyQjqgRYOHryOX3LkOdH5gJGUzMXDwciQ76PKMHHLbdSS0USCYcOZFwwMDAwMr10kMYtMpJAX3fMcQw+6OV9+ICp2Qh5hJOT4sKgkFLFt6+YzeAUl4hVb+GkHVvPi+TxIMoeBgYFh1bJ5eD1BdCn04sUzosXcGfQYDu3bASmZoCUOLCBIMYcqpRAxhn/58R+rOlhjjYOF7T+xeoh1OFl5ABf48ecXI7o69GjHJk+s2cN6VAIA/OTnFOFTzQcAAAAASUVORK5CYII=", "merchant": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAEKElEQVR42u1ZT0gjVxz+EoaQHcIikg2vIkWCiIehlCCLSCjSQxk8SREppRQRz8VDEbGwB1lKDz146klykLAtixQPPQxtka2EIEVSCR5EQogi4yMdZFlDGkJI9hDfOJnMZP5kJtnC/iCHmbyZ+b7f3+/NAO9tuBbw68ZhLtTSHtca9YDTa+1cE/AL+Lo42XF+RyrYIhLmQq3kZ4sAgMzvB5brA16D1wPX245UMAWlBa+UKQDg/PS4J4mgn+CvlYr6Y8dLM6QrvbSmlCn++J7HP7txvH59O5ga0INngHvZ/gk19GyYC7X+O/kSAPBo5oVlCnFe1wADL99WQd80AACJiceO7vEk+TMqtdZgiljrfQZeOqOGa0WBWEYhzIVaXyU/QDpzY4uApxFgwEPN9nE9aPy/nogW/HdLU7ikd7afyXmZOqJAcJin2NtaVM+XrsoAgGfprK37XNI72973JQKxxzy++ek35M6LSExNq/+NjHDInRcxPvYhpDNqGoWBT2JWA7uvClj4fNXWNZTKyGUlVGqdg02f/2Eu1LKKRBA+G/k32wW+1wRPZ27U4+3FiZ4zw9MUWpufxO6vKSTmRBAyZuh1AFCUMq4uchAFgv0TqgLcXpzouqZEreeJLxGgVMaf+ykAQPqvc1Aq4ywjQVHKHeuWZggioaZr8J4TEAWCXFYCAAhJUSVxlpFAphMAgKuLHNbme+slu+D7TiEr8SYkxQ6vM/Bs4J0WyyARDntHV13XfjI16i+BMBdqRcLd2kcUCKSshMRcN3hRIB1rP47H2u03L2NjIe7Y+67bqLZ1mvVzvZzQrpNvqwCAsVH+YW2ziY2FuCGB1LFiOtgC/abN7quCJx3sWqlAystYTsT8I2Akm5k38/Iby+LUij0WkfFopPM/HYmSUsVhoWpKIDho8Gqd3KeYfu8gfjSGl7myt12o14bFDnizlqutE7fayFUXYg+u1Lo371be75AZ/EMCnBYfvE4inLcEao16YEcqtJZm2l6LRfh7AtW+lOsvm52ye/NFFmg2DQvZk0nMwK8kY1hJxhCP8pZdyM7+mO0ZnIJ3RKDWqAcqNWAl2X7A12tRzE/yfcmOL344UMFvpjOG4CeivD+TePt5qe9ZIArEVdp4LqefjvOu60AUCKS83HPd6mwUqWPFcHPjmIB21JeUdhH/fe2umAkfVAXd0cWtKzHnSkqszkbVCalto+vfttOgtNXO64PRdhEXP30JAIgfLhtHwkRC2JnGjiNQa9QDqWPF8AWuH8ai7GkNsA23/vzOj/ftUBd9M887BTuUTb1Xnh7IeyEv7LBQNY36O0ugUg+qwJ18yfGdgB0ZYeXhodWAE/D9WPBdAG/11WagBAbleV8IDBq8awJmH/SGYcH/q+c9I9AvePZmw61xXgPvF9DQpQR7XfjebNpbkENUljDqTU4AAAAASUVORK5CYII="};
-/* ============ exploration: first-person dungeon floors ============ */
-const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];          // north, east, south, west
-const DIR_NAME = ['north','east','south','west'];
-const WALL_BIT = [1,2,4,8];
+const OART2 = {"trap": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABtklEQVR42u1WPU/CUBQ9r2kIkw4WUhkZmIkDE3FwcmIiDIbJH+AfYJXf4B9gwq2TkzGmg+lAGJgcSGSARhmI0sQYkzrRtK+vtBXph7kn6XDfu03ueffecy9AIBAIBAKBQMgtWNwfinLBdtuf318sNwSKcsHutWsAgBfzAwAw0BdIk9DOGeg2jz33A32RelZiE3J/ADCZrWzqTlKhBEtwFxFgaQfca9ccRfuNCLCkg8+aDMfCZLayRapFoF2IdiHahfK7C7GwF84i3BlmfPCdi8tMB2+aczze3zkkpDxJpmnOsVy+es5kkZOqVjxnmjZMLehWq+PEJYKPgCh4y1qnRkDThmg0mgDge/3clZAIUpwGvrl9AAD0Swcem7/fl7+ilKEoZZyenTtqKYWljy+ffukAvbf3yC+0q79lrWEYusfHXUoS38BhiBPMPvz5PpCC5CqITNQy2Jf9f5s4DJuXGI/GqdiRCPAzQIT6ST1VO1IGVLUCw9ADB9jhkZqo3b269imRhwA/A7apEZ/SpG33LAjchbIYeJCcsk0GNozcOjudPmdGbarVmu9sNHpi8rYhIfqJ8Mf4ATXJQfCjvcKgAAAAAElFTkSuQmCC", "entrance": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABtklEQVR42u2YvWrDMBSFr4QJfohSOnToE2QKIXTq5CGDKRkzZeqQB+nQKVPHEjJ08NSphJApT1BKhtKhhJIHMKWQTjLG8Y9+7o1kqjM5GCvfkY6OEwF4eXl51SkMOgfK8TkleBh0DvFonF1TfA+jmu14ND66v3h6zK7T3x/mjAEBXgZdJWHG1Aijmm1VI7pmmC68CXSdGVUT3BX43e4L+tc3yq1F1kJCSbIgHZ9RzH4e+m3eh6vbVfY5iuLS2c9r9foiHSWGBV+ErlLRTBFe1QTDgq+DrjPT7fYq78uY4BgZ14EXK7XZrGl/StTNvgm8jAmZVuI2KlNFTSa4jehgRonbhgcAWC4/YDY5LzWx33/bfZHJwDv5f+AU8FYNYMBbM4AF78QeaJ0BzNkHAAiwBhpO1Xv8Ljpzw8BwuoY0vFR+7iHZGpto/R5AWYHn+167IyRM2NjEPkI60cGMUmAKr9M+mG30vyOk2z7ORMhm+5w0QlTwRiuAER2rBjDa51jvvoUaJc4yw3TbPgP5g9hi+2Bs1Mnsky5CVafIlC3TdCYktQJ58LIBseFloLVWoGrgweACvAz0Bw5Q2JNeXu/kAAAAAElFTkSuQmCC"};
+/* ============ exploration: a map of connected rooms ============ */
+const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
 const FLOOR_NOUNS = ['Halls','Tunnels','Catacombs','Caverns','Warrens','Crypts','Depths','Abyss'];
 /* Floors roll a prefix and a suffix too. */
 const FPRE = {
-  dark:{name:'Dark',desc:'You can only see one step ahead.'},
-  infested:{name:'Infested',desc:'Half again as many monsters.'},
-  quiet:{name:'Quiet',desc:'Fewer monsters roam here.'},
+  dark:{name:'Dark',desc:'Every monster here strikes first.'},
+  infested:{name:'Infested',desc:'Monsters fill half again as many rooms.'},
+  quiet:{name:'Quiet',desc:'Fewer rooms hold monsters.'},
   haunted:{name:'Haunted',desc:'The dead walk these halls: most monsters are undead.'},
   ancient:{name:'Ancient',desc:'Monsters are a level higher, and chests hold better loot.'},
   flooded:{name:'Flooded',desc:'Knee-deep water slows you by 15% in fights.'}
 };
 const FSUF = {
-  riches:{name:'of Riches',desc:'Two extra treasure chests.'},
-  spinners:{name:'of Spinners',desc:'Hidden spinning floors turn you around.'},
-  traps:{name:'of Traps',desc:'Hidden pit traps, and chests are twice as likely to be trapped.'},
+  riches:{name:'of Riches',desc:'Two extra treasure rooms.'},
+  ambush:{name:'of Ambush',desc:'Monsters may jump you in empty rooms.'},
+  traps:{name:'of Traps',desc:'Three extra trap rooms.'},
   rest:{name:'of Rest',desc:'A campfire and a shrine are always here.'},
-  fog:{name:'of Fog',desc:'Your map stops working.'},
+  mists:{name:'of Mists',desc:'You can’t tell what’s in a room until you step inside.'},
   trade:{name:'of Trade',desc:'A wandering merchant is always here.'}
 };
-const UNDEAD_FAMS = ['undead'];
+const ROOM = {
+  start:{name:'Entrance', art:'entrance'},
+  empty:{name:'Empty Room'},
+  mon:{name:'Monster'},
+  chest:{name:'Treasure Room', art:'chest'},
+  trap:{name:'Trapped Room', art:'trap'},
+  stairs:{name:'Stairs Down', art:'stairs'},
+  shrine:{name:'Shrine', art:'shrine'},
+  fire:{name:'Campfire', art:'campfire'},
+  merchant:{name:'Merchant', art:'merchant'}
+};
+const EMPTY_FLAVOR = ['Broken crates and old bones.','A collapsed storeroom. Nothing worth taking.','Water drips somewhere in the dark.','Faded writing covers the walls.','An old campsite, long cold.','Rusted chains hang from the ceiling.','The air smells of damp stone.'];
 
 const key = (x,y) => x+','+y;
-function hasWall(fl, x, y, d){ return (fl.cells[y*fl.N+x] & WALL_BIT[d]) !== 0; }
-function carve(fl, x, y, d){
-  const nx = x+DIRS[d][0], ny = y+DIRS[d][1];
-  fl.cells[y*fl.N+x] &= ~WALL_BIT[d];
-  fl.cells[ny*fl.N+nx] &= ~WALL_BIT[(d+2)%4];
-}
-function openDirs(fl, x, y){ const o = []; for(let d=0; d<4; d++) if(!hasWall(fl,x,y,d)) o.push(d); return o; }
-function bfs(fl, sx, sy){
-  const dist = new Array(fl.N*fl.N).fill(-1), par = new Array(fl.N*fl.N).fill(-1), q = [[sx,sy]];
-  dist[sy*fl.N+sx] = 0;
-  while(q.length){
-    const [x,y] = q.shift();
-    for(const d of openDirs(fl,x,y)){
-      const nx = x+DIRS[d][0], ny = y+DIRS[d][1], i = ny*fl.N+nx;
-      if(dist[i] < 0){ dist[i] = dist[y*fl.N+x]+1; par[i] = y*fl.N+x; q.push([nx,ny]); }
-    }
-  }
-  return {dist, par};
-}
+const unkey = k => k.split(',').map(Number);
 function floorName(fl, depth){
   const noun = FLOOR_NOUNS[Math.min(FLOOR_NOUNS.length-1, Math.floor((depth-1)/2))];
   return `${fl.pre ? FPRE[fl.pre].name+' ' : ''}${noun}${fl.suf ? ' '+FSUF[fl.suf].name : ''}`;
 }
+function linked(fl, a, b){ return fl.links.includes(a < b ? a+'|'+b : b+'|'+a); }
+function neighbors(fl, k){ const [x,y] = unkey(k); return DIRS.map(([dx,dy]) => key(x+dx,y+dy)).filter(n => fl.rooms[n] && linked(fl,k,n)); }
+function bfsRooms(fl, from, passable){
+  const dist = {[from]:0}, par = {}, q = [from];
+  while(q.length){ const k = q.shift(); for(const n of neighbors(fl,k)){ if(dist[n] !== undefined) continue; if(passable && !passable(n)) continue; dist[n] = dist[k]+1; par[n] = k; q.push(n); } }
+  return {dist, par};
+}
 function genFloor(depth){
-  const N = Math.min(11, 6 + Math.floor((depth+1)/2));
-  const fl = {N, cells:new Array(N*N).fill(15), objs:{}, traps:{}, spin:{}, seen:{}, visited:{}, pre:null, suf:null};
-  // maze: recursive backtracker, then knock out a few extra walls for loops
-  const seen = new Set(), stack = [[Math.floor(Math.random()*N), Math.floor(Math.random()*N)]];
-  seen.add(key(...stack[0]));
-  while(stack.length){
-    const [x,y] = stack[stack.length-1];
-    const opts = shuffle([0,1,2,3]).filter(d => { const nx = x+DIRS[d][0], ny = y+DIRS[d][1]; return nx>=0 && ny>=0 && nx<N && ny<N && !seen.has(key(nx,ny)); });
-    if(!opts.length){ stack.pop(); continue; }
-    const d = opts[0], nx = x+DIRS[d][0], ny = y+DIRS[d][1];
-    carve(fl, x, y, d); seen.add(key(nx,ny)); stack.push([nx,ny]);
-  }
-  for(let i=0; i<Math.round(N*N*.12); i++){
-    const x = Math.floor(Math.random()*N), y = Math.floor(Math.random()*N), d = Math.floor(Math.random()*4);
-    const nx = x+DIRS[d][0], ny = y+DIRS[d][1];
-    if(nx>=0 && ny>=0 && nx<N && ny<N && hasWall(fl,x,y,d)) carve(fl, x, y, d);
-  }
-  // floor affixes get more likely the deeper you go
+  const fl = {rooms:{}, links:[], pre:null, suf:null, visited:{}, prev:null};
   if(depth > 1 && Math.random() < Math.min(.75, .2 + depth*.06)) fl.pre = pick(Object.keys(FPRE));
   if(depth > 1 && Math.random() < Math.min(.7, .15 + depth*.06)) fl.suf = pick(Object.keys(FSUF));
-  // start in a random cell; the stairs go in the farthest dead end
-  const sx = Math.floor(Math.random()*N), sy = Math.floor(Math.random()*N);
-  fl.start = [sx, sy];
-  const {dist, par} = bfs(fl, sx, sy);
-  const all = []; for(let y=0; y<N; y++) for(let x=0; x<N; x++) all.push([x,y]);
-  const dead = all.filter(([x,y]) => openDirs(fl,x,y).length===1 && !(x===sx && y===sy));
-  const far = (dead.length ? dead : all).slice().sort((a,b) => dist[b[1]*N+b[0]] - dist[a[1]*N+a[0]]);
-  const [tx, ty] = far[0];
-  fl.objs[key(tx,ty)] = {t:'stairs'};
-  const taken = new Set([key(sx,sy), key(tx,ty)]);
-  const free = () => shuffle(all).filter(([x,y]) => !taken.has(key(x,y)) && dist[y*N+x] >= 2);
-  const deadFree = () => shuffle(dead).filter(([x,y]) => !taken.has(key(x,y)));
-  const place = (cell, obj) => { if(!cell) return; taken.add(key(...cell)); fl.objs[key(...cell)] = obj; };
-  const monOpts = {fams: fl.pre==='haunted' && Math.random() < .8 ? UNDEAD_FAMS : null, lvl: fl.pre==='ancient' ? 1 : 0};
-  // a champion guards the stairs every third floor
-  if(depth % 3 === 0){
-    const gi = par[ty*N+tx];
-    if(gi >= 0 && !(gi === sy*N+sx)){ place([gi%N, Math.floor(gi/N)], {t:'mon', m:genMonster(depth, true, monOpts)}); }
+  const want = Math.round(clamp(9 + depth*1.5, 9, 22));
+  const add = (x,y) => { const k = key(x,y); fl.rooms[k] = {x, y, t:'empty'}; return k; };
+  const link = (a,b) => { const l = a < b ? a+'|'+b : b+'|'+a; if(!fl.links.includes(l)) fl.links.push(l); };
+  const start = add(0,0); fl.rooms[start].t = 'start'; fl.rooms[start].done = true;
+  // grow a branching tree: keep picking a room and pushing a corridor out of it in a random direction
+  let guard = 0;
+  while(Object.keys(fl.rooms).length < want && guard++ < 2000){
+    const from = pick(Object.keys(fl.rooms)), [x,y] = unkey(from), [dx,dy] = pick(DIRS);
+    const nk = key(x+dx, y+dy);
+    if(fl.rooms[nk]) continue;
+    if(neighbors(fl, from).length >= 3 && Math.random() < .7) continue;   // keep it from becoming a solid block
+    add(x+dx, y+dy); link(from, nk);
   }
-  const chests = 2 + (fl.suf==='riches' ? 2 : 0) + (Math.random() < .4 ? 1 : 0);
-  for(let i=0; i<chests; i++) place(deadFree()[0] || free()[0], {t:'chest'});
-  // shrines, campfires and merchants stay put, so they only ever go in dead ends where they can't block a path
-  if(fl.suf==='rest' || Math.random() < .45) place(deadFree()[0], {t:'fire'});
-  if(fl.suf==='rest' || Math.random() < .35) place(deadFree()[0], {t:'shrine'});
-  if(fl.suf==='trade' || (depth > 1 && Math.random() < .3)) place(deadFree()[0], {t:'merchant', items:[genItem(depth,'potion'), genItem(depth), genItem(depth), genItem(depth,'scroll')]});
-  const mons = Math.round((3 + depth*.5) * (fl.pre==='infested' ? 1.5 : fl.pre==='quiet' ? .6 : 1));
-  for(let i=0; i<mons; i++){ const c = free()[0]; if(c) place(c, {t:'mon', m:genMonster(depth, false, monOpts)}); }
-  if(fl.suf==='traps') for(let i=0; i<3; i++){ const c = free()[0]; if(c){ fl.traps[key(...c)] = 1; } }
-  if(fl.suf==='spinners') for(let i=0; i<3; i++){ const c = free()[0]; if(c){ fl.spin[key(...c)] = 1; } }
-  fl.visited[key(sx,sy)] = 1;
-  // face an open direction
-  fl.startF = openDirs(fl, sx, sy)[0] ?? 0;
+  // a few extra corridors make loops, so there's more than one way around
+  for(const k of Object.keys(fl.rooms)){ const [x,y] = unkey(k); for(const [dx,dy] of DIRS){ const n = key(x+dx,y+dy); if(fl.rooms[n] && !linked(fl,k,n) && Math.random() < .12) link(k,n); } }
+  const {dist, par} = bfsRooms(fl, start);
+  const keys = Object.keys(fl.rooms).filter(k => k !== start);
+  const far = keys.slice().sort((a,b) => dist[b] - dist[a]);
+  const stairs = far[0]; fl.rooms[stairs].t = 'stairs'; fl.rooms[stairs].done = true;
+  const free = () => shuffle(keys.filter(k => fl.rooms[k].t === 'empty'));
+  const leaves = () => shuffle(keys.filter(k => fl.rooms[k].t === 'empty' && neighbors(fl,k).length === 1));
+  const set = (k, t, extra={}) => { if(!k) return; Object.assign(fl.rooms[k], {t}, extra); };
+  const monOpts = {fams: fl.pre==='haunted' && Math.random() < .8 ? ['undead'] : null, lvl: fl.pre==='ancient' ? 1 : 0};
+  if(depth % 3 === 0){ const g = par[stairs]; if(g && g !== start) set(g, 'mon', {m:genMonster(depth, true, monOpts)}); }
+  for(let i=0; i<2 + (fl.suf==='riches' ? 2 : 0); i++) set(leaves()[0] || free()[0], 'chest');
+  for(let i=0; i<1 + (fl.suf==='traps' ? 3 : 0); i++) set(free()[0], 'trap');
+  if(fl.suf==='rest' || Math.random() < .45) set(leaves()[0] || free()[0], 'fire');
+  if(fl.suf==='rest' || Math.random() < .35) set(leaves()[0] || free()[0], 'shrine');
+  if(fl.suf==='trade' || (depth > 1 && Math.random() < .3)) set(leaves()[0] || free()[0], 'merchant', {items:[genItem(depth,'potion'), genItem(depth), genItem(depth), genItem(depth,'scroll')]});
+  const share = fl.pre==='infested' ? .55 : fl.pre==='quiet' ? .2 : .38;
+  const rest = free(); const nMon = Math.round(rest.length * share);
+  for(let i=0; i<nMon; i++) set(rest[i], 'mon', {m:genMonster(depth, false, monOpts)});
+  for(const k of keys) if(fl.rooms[k].t === 'empty') fl.rooms[k].flavor = pick(EMPTY_FLAVOR);
+  fl.cur = start; fl.visited[start] = 1;
   return fl;
 }
 
-/* ---------- images ---------- */
-const IMG = {};
-function img(src){
-  if(!IMG[src]){ const i = new Image(); i.onload = () => { if(S.run && S.run.phase==='explore') drawExplore(); }; i.src = src; IMG[src] = i; }
-  return IMG[src];
-}
-function objArt(o){
-  if(o.t==='mon') return ART[o.m.base];
-  return OART[{chest:'chest', stairs:'stairs', shrine:'shrine', fire:'campfire', merchant:'merchant'}[o.t]];
+/* ---------- what you can see ---------- */
+function shown(fl, k){ return fl.visited[k] || neighbors(fl, k).some(n => fl.visited[n]); }
+function typeKnown(fl, k){ return fl.visited[k] || (fl.suf !== 'mists' && shown(fl, k)); }
+function pending(rm){ return (rm.t==='mon' && !rm.done) || (rm.t==='trap' && !rm.done); }
+function roomArt(rm){
+  if(rm.t==='mon') return rm.done ? null : ART[rm.m.base];
+  const a = ROOM[rm.t].art; return a ? (a==='entrance' || a==='trap' ? OART2[a] : OART[a]) : null;
 }
 
-/* ---------- first-person view ---------- */
-const VW = 160; let VH = 120;   // the view's height follows the screen's shape
-const PLANES = [1, .62, .38, .235, .145, .09];
-function plane(d){ const s = PLANES[d], w = VW*s, h = VH*s; return {l:(VW-w)/2, r:(VW+w)/2, t:(VH-h)/2, b:(VH+h)/2, w, h, s}; }
-const FOG = [.0, .22, .45, .62, .78, .88];
-function drawExplore(){ drawView(); drawMap(); }
-function drawView(){
-  const cv = $('#dview'); if(!cv) return;
-  const ctx = cv.getContext && cv.getContext('2d'); if(!ctx) return;
-  const r = R(), fl = r.floor, {x, y, f} = r.pos;
-  const wrap = cv.parentElement;
-  if(wrap && wrap.clientWidth){ const vh = Math.round(clamp(VW * wrap.clientHeight / wrap.clientWidth, 96, 260)); if(cv.height !== vh) cv.height = vh; VH = vh; }
-  ctx.imageSmoothingEnabled = false;
-  const wallI = img(TILE_WALL), floorI = img(TILE_FLOOR);
-  const pat = (im, s, tx=0, ty=0) => { if(!im.complete || !im.naturalWidth) return '#2a2d3a'; const p = ctx.createPattern(im, 'repeat'); if(p.setTransform && typeof DOMMatrix !== 'undefined') p.setTransform(new DOMMatrix([s,0,0,s,tx,ty])); return p; };
-  // ceiling and floor
-  const cg = ctx.createLinearGradient(0,0,0,VH/2); cg.addColorStop(0,'#14141c'); cg.addColorStop(1,'#050508');
-  ctx.fillStyle = cg; ctx.fillRect(0,0,VW,VH/2);
-  ctx.fillStyle = pat(floorI, 1); ctx.fillRect(0,VH/2,VW,VH/2);
-  const fg = ctx.createLinearGradient(0,VH/2,0,VH); fg.addColorStop(0,'rgba(4,4,8,.97)'); fg.addColorStop(1,'rgba(4,4,8,.15)');
-  ctx.fillStyle = fg; ctx.fillRect(0,VH/2,VW,VH/2);
-  // walk forward to find visible cells
-  const maxD = fl.pre==='dark' ? 1 : 4;
-  const cells = [{x, y}]; let front = false, cx = x, cy = y;
-  for(let d=0; d<maxD; d++){
-    if(hasWall(fl,cx,cy,f)){ front = true; break; }
-    cx += DIRS[f][0]; cy += DIRS[f][1]; cells.push({x:cx, y:cy});
+/* ---------- the map ---------- */
+const GRID = 84, TILE = 62;
+function mapHtml(){
+  const r = R(), fl = r.floor, ks = Object.keys(fl.rooms).filter(k => shown(fl,k));
+  const xs = ks.map(k => fl.rooms[k].x), ys = ks.map(k => fl.rooms[k].y);
+  const minx = Math.min(...xs), miny = Math.min(...ys), maxx = Math.max(...xs), maxy = Math.max(...ys);
+  const pad = 40, W = (maxx-minx)*GRID + TILE + pad*2, H = (maxy-miny)*GRID + TILE + pad*2;
+  const pos = rm => [pad + (rm.x-minx)*GRID, pad + (rm.y-miny)*GRID];
+  const cur = fl.rooms[fl.cur], locked = pending(cur);
+  let lines = '', tiles = '';
+  for(const l of fl.links){
+    const [a,b] = l.split('|'); if(!shown(fl,a) || !shown(fl,b)) continue;
+    const A = fl.rooms[a], B = fl.rooms[b], [ax,ay] = pos(A), [bx,by] = pos(B);
+    const walked = fl.visited[a] && fl.visited[b];
+    if(A.y === B.y) lines += `<i class="ln h ${walked?'walked':''}" style="left:${Math.min(ax,bx)+TILE}px;top:${ay+TILE/2-2}px;width:${GRID-TILE}px"></i>`;
+    else lines += `<i class="ln v ${walked?'walked':''}" style="left:${ax+TILE/2-2}px;top:${Math.min(ay,by)+TILE}px;height:${GRID-TILE}px"></i>`;
   }
-  const L = (f+3)%4, Rt = (f+1)%4;
-  const poly = (pts, fill, fog) => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); if(fog){ ctx.fillStyle = `rgba(4,4,8,${fog})`; ctx.fill(); } };
-  const edge = (pts) => { ctx.strokeStyle = 'rgba(0,0,0,.65)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(const p of pts.slice(1)) ctx.lineTo(p[0],p[1]); ctx.closePath(); ctx.stroke(); };
-  for(let d=cells.length-1; d>=0; d--){
-    const c = cells[d], A = plane(d), B = plane(d+1);
-    fl.seen[key(c.x,c.y)] = 1;
-    const ws = (A.s+B.s)/2*2;
-    // left side
-    if(hasWall(fl,c.x,c.y,L)){ const p = [[A.l,A.t],[B.l,B.t],[B.l,B.b],[A.l,A.b]]; poly(p, pat(wallI, ws), Math.min(.95, FOG[d]+.18)); edge(p); }
-    else { const p = [[A.l,B.t],[B.l,B.t],[B.l,B.b],[A.l,B.b]]; poly(p, pat(wallI, B.s*2, B.l, B.t), Math.min(.95, FOG[d+1]+.12)); edge(p); const nx=c.x+DIRS[L][0], ny=c.y+DIRS[L][1]; if(nx>=0&&ny>=0&&nx<fl.N&&ny<fl.N) fl.seen[key(nx,ny)] = 1; }
-    // right side
-    if(hasWall(fl,c.x,c.y,Rt)){ const p = [[A.r,A.t],[B.r,B.t],[B.r,B.b],[A.r,A.b]]; poly(p, pat(wallI, ws), Math.min(.95, FOG[d]+.28)); edge(p); }
-    else { const p = [[B.r,B.t],[A.r,B.t],[A.r,B.b],[B.r,B.b]]; poly(p, pat(wallI, B.s*2, B.r, B.t), Math.min(.95, FOG[d+1]+.2)); edge(p); const nx=c.x+DIRS[Rt][0], ny=c.y+DIRS[Rt][1]; if(nx>=0&&ny>=0&&nx<fl.N&&ny<fl.N) fl.seen[key(nx,ny)] = 1; }
-    // what's straight ahead at the end of sight
-    if(d === cells.length-1){
-      if(front){ const p = [[B.l,B.t],[B.r,B.t],[B.r,B.b],[B.l,B.b]]; poly(p, pat(wallI, B.s*2, B.l, B.t), FOG[d+1]); edge(p); }
-      else { ctx.fillStyle = '#030305'; ctx.fillRect(B.l,B.t,B.w,B.h); }
-    }
-    // an object standing in this cell
-    if(d >= 1){
-      const o = fl.objs[key(c.x,c.y)];
-      if(o){
-        const src = objArt(o), im = src && img(src);
-        if(im && im.complete && im.naturalWidth){
-          const h = (A.h+B.h)/2 * (o.t==='stairs' ? .9 : .95), base = (A.b+B.b)/2 + (o.t==='stairs' ? h*.12 : 0);
-          ctx.save(); if('filter' in ctx) ctx.filter = `brightness(${1 - FOG[d]*.8})`;
-          ctx.drawImage(im, Math.round(VW/2 - h/2), Math.round(base - h), Math.round(h), Math.round(h));
-          ctx.restore();
-        }
-      }
-    }
+  for(const k of ks){
+    const rm = fl.rooms[k], [x,y] = pos(rm), known = typeKnown(fl,k), here = k === fl.cur;
+    const adj = neighbors(fl, fl.cur).includes(k);
+    const reach = !here && (locked ? k === fl.prev : true);
+    const art = known ? roomArt(rm) : null;
+    const cls = ['room', here?'here':'', fl.visited[k]?'seen':'unknown', adj && reach ?'adj':'', known && rm.t==='mon' && !rm.done ? 'danger '+(rm.m.rarity||'') : '', known && rm.done && rm.t!=='start' && rm.t!=='stairs' ? 'done' : '', known ? 't-'+rm.t : ''].join(' ');
+    const label = known ? (rm.t==='mon' ? (rm.done ? 'Cleared' : `Lv ${rm.m.lvl}`) : rm.t==='empty' ? '' : ROOM[rm.t].name.split(' ')[0]) : '?';
+    tiles += `<button class="${cls}" style="left:${x}px;top:${y}px" data-act="goRoom" data-arg="${k}" ${reach?'':'aria-disabled="true"'} aria-label="${known ? ROOM[rm.t].name : 'Unexplored room'}">
+      ${art ? `<img src="${art}" alt="">` : `<span class="q">${known ? (rm.t==='empty' ? '' : '·') : '?'}</span>`}
+      ${label ? `<span class="rl">${label}</span>` : ''}${here ? '<span class="you">YOU</span>' : ''}</button>`;
   }
-  // warm torchlight near the player
-  const tg = ctx.createRadialGradient(VW/2, VH, 6, VW/2, VH, VH*.9);
-  tg.addColorStop(0,'rgba(255,150,60,.16)'); tg.addColorStop(1,'rgba(255,150,60,0)');
-  ctx.fillStyle = tg; ctx.fillRect(0,0,VW,VH);
+  return `<div class="mapinner" style="width:${W}px;height:${H}px">${lines}${tiles}</div>`;
 }
-function drawMap(big){
-  const cv = big ? $('#bigmap') : $('#amap'); if(!cv) return;
-  const ctx = cv.getContext && cv.getContext('2d'); if(!ctx) return;
-  const r = R(), fl = r.floor, N = fl.N, cs = big ? 10 : 4, pad = big ? 4 : 2;
-  cv.width = N*cs + pad*2; cv.height = N*cs + pad*2;
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.fillStyle = 'rgba(6,6,10,.85)'; ctx.fillRect(0,0,cv.width,cv.height);
-  if(fl.suf==='fog'){ ctx.fillStyle = '#8e889e'; ctx.font = `${big?16:8}px monospace`; ctx.textAlign = 'center'; ctx.fillText('?', cv.width/2, cv.height/2+3); return; }
-  for(let y=0; y<N; y++) for(let x=0; x<N; x++){
-    const k = key(x,y); if(!fl.seen[k] && !fl.visited[k]) continue;
-    const X = pad + x*cs, Y = pad + y*cs;
-    ctx.fillStyle = fl.visited[k] ? '#3a3a4a' : '#24242e'; ctx.fillRect(X, Y, cs, cs);
-    ctx.fillStyle = '#c9bfa6';
-    if(hasWall(fl,x,y,0)) ctx.fillRect(X, Y, cs, 1);
-    if(hasWall(fl,x,y,2)) ctx.fillRect(X, Y+cs-1, cs, 1);
-    if(hasWall(fl,x,y,3)) ctx.fillRect(X, Y, 1, cs);
-    if(hasWall(fl,x,y,1)) ctx.fillRect(X+cs-1, Y, 1, cs);
-    const o = fl.objs[k];
-    const dot = o ? {mon:'#ff4a3a', chest:'#f2c444', stairs:'#ffffff', shrine:'#7fe0ff', fire:'#ff9a3a', merchant:'#6ad27c'}[o.t] : (fl.traps[k]===2 ? '#b070ff' : null);
-    if(dot){ ctx.fillStyle = dot; const s = big ? 4 : 2; ctx.fillRect(X + (cs-s)/2, Y + (cs-s)/2, s, s); }
-  }
-  // the player, with a nub pointing the way you face
-  const {x, y, f} = r.pos, X = pad + x*cs, Y = pad + y*cs, s = big ? 4 : 2;
-  ctx.fillStyle = '#ffd34d'; ctx.fillRect(X + (cs-s)/2, Y + (cs-s)/2, s, s);
-  const nx = X + cs/2 - 1 + DIRS[f][0]*(cs/2-1), ny = Y + cs/2 - 1 + DIRS[f][1]*(cs/2-1);
-  ctx.fillRect(Math.round(nx), Math.round(ny), big ? 2 : 1, big ? 2 : 1);
+function centerMap(smooth){
+  const box = $('#roommap'), here = box && box.querySelector('.room.here'); if(!box || !here) return;
+  const left = here.offsetLeft - box.clientWidth/2 + TILE/2, top = here.offsetTop - box.clientHeight/2 + TILE/2;
+  if(box.scrollTo) box.scrollTo({left, top, behavior: smooth ? 'smooth' : 'auto'}); else { box.scrollLeft = left; box.scrollTop = top; }
 }
 
-/* ---------- what's ahead, and what you can do about it ---------- */
-function ahead(){
-  const r = R(), fl = r.floor, {x, y, f} = r.pos;
-  if(hasWall(fl,x,y,f)) return {wall:true};
-  const nx = x+DIRS[f][0], ny = y+DIRS[f][1], k = key(nx,ny);
-  return {k, x:nx, y:ny, obj:fl.objs[k]};
-}
-function exploreMsg(){
-  const a = ahead(), o = a.obj, r = R();
-  if(r.msg) return r.msg;
-  if(a.wall) return `A wall blocks the way ${DIR_NAME[r.pos.f]}.`;
-  if(!o) return `You face ${DIR_NAME[r.pos.f]}. Tap Forward to walk to the next turn.`;
-  if(o.t==='mon') return `<span class="r-${o.m.rarity}">${article(monName(o.m))} <b>${monNameHtml(o.m)}</b></span> blocks the way. Level ${o.m.lvl}${o.m.champion?', a champion':''}.`;
-  return {chest:'A treasure chest sits in front of you.', stairs:'Stairs lead down into the dark.', shrine: o.used ? 'The shrine has gone dark.' : 'A glowing shrine hums softly.', fire: o.used ? 'Only embers remain.' : 'A campfire crackles. Someone left it burning.', merchant:'A wandering merchant waves you over.'}[o.t];
-}
-function ctxButtons(){
-  const a = ahead(), o = a.obj;
-  if(!o) return `<div class="idle">${a.wall ? 'Turn to find another way' : 'Nothing ahead yet'}</div>`;
-  switch(o.t){
-    case 'mon': return `<button class="btn primary span2" data-act="interact">Fight</button>`;
-    case 'chest': return `<button class="btn primary span2" data-act="interact">Open the chest</button>`;
-    case 'stairs': return `<button class="btn primary" data-act="descend">Go down</button><button class="btn" data-act="toTown">Back to town</button>`;
-    case 'shrine': return o.used ? `<div class="idle">The shrine is spent</div>` : `<button class="btn primary span2" data-act="interact">Pray at the shrine</button>`;
-    case 'fire': return o.used ? `<div class="idle">The fire is out</div>` : `<button class="btn primary span2" data-act="interact">Rest by the fire</button>`;
-    case 'merchant': return `<button class="btn primary span2" data-act="interact">Trade</button>`;
+/* ---------- the room you're in ---------- */
+function roomPanel(){
+  const r = R(), fl = r.floor, rm = fl.rooms[fl.cur];
+  let title = ROOM[rm.t].name, text = '', art = roomArt(rm), acts = '';
+  if(r.msg){ text = r.msg; }
+  switch(rm.t){
+    case 'start': text = text || (r.depth===1 ? 'The way back to Emberhold. Tap a connected room on the map to move.' : 'The stairs you came down. Tap a connected room on the map to move.');
+      acts = r.depth===1 ? `<button class="btn span2" data-act="toTown">Back to town</button>` : ''; break;
+    case 'empty': text = text || rm.flavor; break;
+    case 'mon':
+      if(rm.done){ title = 'Cleared Room'; text = text || 'Signs of your fight are everywhere.'; art = null; }
+      else { title = monNameHtml(rm.m); text = text || `Level ${rm.m.lvl}${rm.m.champion ? ' champion' : ''}. It hasn’t noticed you yet.`;
+        acts = `<button class="btn primary" data-act="fightRoom">Fight</button><button class="btn" data-act="retreat">Retreat</button>`; }
+      break;
+    case 'chest':
+      if(rm.done){ title = 'Emptied Room'; text = text || 'An empty, broken chest.'; art = null; }
+      else { text = text || 'A heavy chest sits against the wall. It could be trapped.'; acts = `<button class="btn primary span2" data-act="openChest">Open the chest</button>`; }
+      break;
+    case 'trap':
+      if(rm.done){ title = 'Sprung Trap'; text = text || 'The trap has been dealt with.'; }
+      else { text = text || `Pressure plates cover the floor. Disarm chance ${Math.round(disarmChance()*100)}%, better with Dexterity and Luck.`; acts = `<button class="btn primary" data-act="disarm">Disarm</button><button class="btn" data-act="dash">Dash through</button>`; }
+      break;
+    case 'stairs': text = text || 'Stairs lead down into the dark.'; acts = `<button class="btn primary" data-act="descend">Go down</button><button class="btn" data-act="toTown">Back to town</button>`; break;
+    case 'shrine': text = text || (rm.used ? 'The shrine has gone dark.' : 'A glowing shrine hums softly.'); if(!rm.used) acts = `<button class="btn primary span2" data-act="pray">Pray at the shrine</button>`; break;
+    case 'fire': text = text || (rm.used ? 'Only embers remain.' : 'A campfire crackles. Someone left it burning.'); if(!rm.used) acts = `<button class="btn primary span2" data-act="restFire">Rest by the fire</button>`; break;
+    case 'merchant': text = text || '“Everything has a price down here.”'; acts = `<button class="btn primary span2" data-act="trade">Trade</button>`; break;
   }
-  return '';
+  if(!acts) acts = `<div class="idle">Tap a connected room to move</div>`;
+  const rar = rm.t==='mon' && !rm.done ? 'r-'+rm.m.rarity : '';
+  return `<div class="rpanel ${rar}">
+      <div class="rart">${art ? `<img src="${art}" alt="">` : ''}</div>
+      <div class="rtext"><h3>${title}</h3><p>${text}</p></div>
+    </div>
+    <div class="ctx">${acts}</div>`;
 }
 function exploreView(){
-  const r = R();
   return `<div class="dun explore">${floorBar()}
-    <div class="viewwrap"><canvas id="dview" width="${VW}" height="${VH}" data-act="tapView" aria-label="Dungeon view"></canvas><canvas id="amap" data-act="mapBig" aria-label="Map"></canvas></div>
-    <p class="xmsg" id="xmsg">${exploreMsg()}</p>
-    <div class="actions">
-      <div class="ctx" id="ctx">${ctxButtons()}</div>
-      <div class="dpad">
-        <button class="btn" data-act="turnL" aria-label="Turn left">◄ Left</button>
-        <button class="btn primary" data-act="walk" aria-label="Walk forward">▲ Forward</button>
-        <button class="btn" data-act="turnR" aria-label="Turn right">Right ►</button>
-        <button class="btn" data-act="turnB" aria-label="Turn around">▼ Back</button>
-      </div>
-    </div>
+    <div class="roommap" id="roommap">${mapHtml()}</div>
+    <div class="actions xactions" id="xpanel">${roomPanel()}</div>
     ${runFooter()}
   </div>`;
 }
-function updateExplore(){
-  const m = $('#xmsg'), c = $('#ctx');
-  if(m) m.innerHTML = exploreMsg();
-  if(c) c.innerHTML = ctxButtons();
-  drawExplore();
+function updateExplore(smooth){
+  const m = $('#roommap'), p = $('#xpanel');
+  if(m){ const sl = m.scrollLeft, st = m.scrollTop; m.innerHTML = mapHtml(); m.scrollLeft = sl; m.scrollTop = st; }
+  if(p) p.innerHTML = roomPanel();
+  centerMap(smooth);
 }
 
-/* ---------- moving ---------- */
+/* ---------- moving between rooms ---------- */
 let moving = false;
-function turn(by){ if(moving) return; const r = R(); r.pos.f = (r.pos.f + by + 4) % 4; r.msg = null; save(); updateExplore(); }
-async function walk(){
+async function goRoom(k){
   const r = R(); if(moving || !r || r.phase!=='explore') return;
+  const fl = r.floor; if(!fl.rooms[k] || k === fl.cur || !shown(fl,k)) return;
+  const cur = fl.rooms[fl.cur];
+  if(pending(cur) && k !== fl.prev){ toast(cur.t==='mon' ? 'Deal with the monster, or retreat the way you came.' : 'Get past the trap first, or go back the way you came.'); return; }
+  // route through rooms you've already made safe
+  const {par} = bfsRooms(fl, fl.cur, n => n === k || (fl.visited[n] && !pending(fl.rooms[n])));
+  if(!par[k] && !neighbors(fl, fl.cur).includes(k)){ toast('You can’t reach that room from here yet.'); return; }
+  const path = []; for(let n = k; n && n !== fl.cur; n = par[n]) path.unshift(n);
   moving = true; r.msg = null;
-  let steps = 0;
-  for(let guard=0; guard<60; guard++){
-    const a = ahead();
-    if(a.wall){ break; }
-    if(a.obj){ if(steps===0){ moving = false; return interact(); } break; }
-    r.pos.x = a.x; r.pos.y = a.y; steps++;
-    r.floor.visited[a.k] = 1;
-    updateExplore();
-    await sleep(110);
+  for(const step of path){
+    fl.prev = fl.cur; fl.cur = step; fl.visited[step] = 1;
+    updateExplore(true);
+    await sleep(path.length > 1 ? 160 : 60);
     if(!S.run || S.run.phase!=='explore') break;
-    if(r.floor.traps[a.k] === 1){
-      r.floor.traps[a.k] = 2;
-      const hs = heroStats(), dmg = Math.max(1, Math.round(hs.maxhp*.15));
-      S.hero.hp = Math.max(1, S.hero.hp - dmg); ouch(); updateHud();
-      r.msg = `The floor gives way! You fall into a pit and lose ${dmg} health.`; break;
-    }
-    if(r.floor.spin[a.k]){
-      r.pos.f = Math.floor(Math.random()*4);
-      r.msg = 'The floor spins beneath you. Which way were you going?'; break;
-    }
-    const exits = openDirs(r.floor, r.pos.x, r.pos.y).filter(d => d !== (r.pos.f+2)%4);
-    if(exits.length !== 1) break;                         // junction or dead end: stop and choose
-    if(exits[0] !== r.pos.f){ r.pos.f = exits[0]; updateExplore(); await sleep(70); }   // follow the bend
   }
   moving = false;
-  save(); updateExplore();
+  enterRoom();
 }
-function interact(){
-  const r = R(), a = ahead(), o = a.obj; if(!o || moving) return;
-  r.msg = null;
-  if(o.t==='mon') return startEncounter(a.k);
-  if(o.t==='chest') return openChest(a.k);
-  if(o.t==='shrine' && !o.used) return pray(o);
-  if(o.t==='fire' && !o.used) return restFire(o);
-  if(o.t==='merchant') return openSheet(merchantSheet(o), 'merchant');
+function enterRoom(){
+  const r = R(), fl = r.floor, rm = fl.rooms[fl.cur];
+  if(rm.t==='empty' && fl.suf==='ambush' && !rm.ambushed && Math.random() < .25){
+    rm.ambushed = true; rm.t = 'mon'; rm.m = genMonster(r.depth, false);
+    toast('Something was waiting for you!'); save(); return startEncounter(fl.cur);
+  }
+  if(rm.t==='mon' && !rm.done && (fl.pre==='dark' || monStats(rm.m).ambush)){ toast('It strikes first!'); save(); return startEncounter(fl.cur); }
+  save(); updateExplore(true);
 }
-function openChest(k){
-  const r = R(), fl = r.floor, hs = heroStats();
-  delete fl.objs[k];
+function retreat(){
+  const r = R(), fl = r.floor; if(!fl.prev) return;
+  const back = fl.prev; fl.prev = fl.cur; fl.cur = back; r.msg = 'You back away the way you came.';
+  save(); updateExplore(true);
+}
+function disarmChance(){ const hs = heroStats(); return clamp(.35 + (hs.dex-5)*.04 + (hs.lck-5)*.02 + hs.dodge/200, .15, .92); }
+function disarm(){
+  const r = R(), rm = r.floor.rooms[r.floor.cur], hs = heroStats(); if(rm.t!=='trap' || rm.done) return;
+  rm.done = true;
+  if(Math.random() < disarmChance()){
+    const g = Math.round(rand(4,9)*r.depth); S.hero.gold += g;
+    r.msg = `Click. You disarm the trap and pocket ${g} gold from the mechanism.`;
+  } else {
+    const d = Math.max(1, Math.round(hs.maxhp*.18)); S.hero.hp = Math.max(1, S.hero.hp - d); ouch();
+    r.msg = `It goes off in your hands! Darts hit you for ${d}.`;
+  }
+  save(); updateHud(); updateExplore();
+}
+function dash(){
+  const r = R(), rm = r.floor.rooms[r.floor.cur], hs = heroStats(); if(rm.t!=='trap' || rm.done) return;
+  rm.done = true;
+  const d = Math.max(1, Math.round(hs.maxhp*(.1 - Math.min(.06, (hs.dex-5)*.006))));
+  S.hero.hp = Math.max(1, S.hero.hp - d); ouch();
+  r.msg = `You sprint across as darts fly. One grazes you for ${d}.`;
+  save(); updateHud(); updateExplore();
+}
+function openChest(){
+  const r = R(), fl = r.floor, rm = fl.rooms[fl.cur], hs = heroStats(); if(rm.t!=='chest' || rm.done) return;
+  rm.done = true;
   if(r.depth >= 3 && Math.random() < .1){
     const m = genMonster(Math.max(r.depth, 6), false); m.base = 'mimic'; m.lvl = r.depth + 1; m.hp = monStats(m).hp;
     toast('The chest grows teeth. It’s a Mimic!');
     return startEncounter(m);
   }
   let trap = null;
-  if(Math.random() < (fl.suf==='traps' ? .36 : .18)){
+  if(Math.random() < .18){
     if(Math.random() < .5){ const d = Math.max(1, Math.round(hs.maxhp*.12)); S.hero.hp = Math.max(1, S.hero.hp - d); trap = `A needle trap! You lose ${d} health.`; }
     else { r.pb.poison = {t:3, d:Math.max(1, Math.round(r.depth*1.5))}; trap = 'A puff of green gas. You’re poisoned.'; }
     ouch();
@@ -2283,21 +2239,24 @@ function openChest(k){
   r.loot = items; r.tookAll = false; r.phase = 'loot';
   save(); render(); $('#view').scrollTop = 0;
 }
-function pray(o){
-  const r = R(), h = S.hero, hs = heroStats(); o.used = true;
+function pray(){
+  const r = R(), rm = r.floor.rooms[r.floor.cur], h = S.hero, hs = heroStats(); if(rm.t!=='shrine' || rm.used) return;
+  rm.used = true;
   const roll = Math.random();
   if(roll < .45){ h.hp = hs.maxhp; r.msg = 'Warm light washes over you. Health fully restored.'; }
   else if(roll < .7){ const xp = 12*r.depth; gainXp(xp); r.msg = `Visions of the deep fill your mind. You gain ${xp} experience.`; }
-  else if(roll < .85){ const it = genItem(r.depth+1); if(S.hero.bag.length < BAG_MAX){ S.hero.bag.push(it); r.msg = `An offering appears on the altar: ${itemName(it)}.`; } else r.msg = 'An offering appears, but your bag is full.'; }
+  else if(roll < .85){ const it = genItem(r.depth+1); if(h.bag.length < BAG_MAX){ h.bag.push(it); r.msg = `An offering appears on the altar: ${itemName(it)}.`; } else r.msg = 'An offering appears, but your bag is full.'; }
   else { const d = Math.round(hs.maxhp*.1); h.hp = Math.max(1, h.hp - d); r.msg = `The shrine is angry. Cold fire burns you for ${d}.`; ouch(); }
   save(); updateHud(); updateExplore();
 }
-function restFire(o){
-  const r = R(), h = S.hero, hs = heroStats(); o.used = true;
+function restFire(){
+  const r = R(), rm = r.floor.rooms[r.floor.cur], h = S.hero, hs = heroStats(); if(rm.t!=='fire' || rm.used) return;
+  rm.used = true;
   const v = Math.min(hs.maxhp - h.hp, Math.round(hs.maxhp*.4)); h.hp += v; r.pb = {};
   r.msg = `You rest by the fire and recover ${v} health. Lingering effects fade.`;
   save(); updateHud(); updateExplore();
 }
+function merchantRoom(){ const r = R(); return r && r.floor && r.floor.rooms ? Object.values(r.floor.rooms).find(x => x.t==='merchant') : null; }
 function merchantPrice(it){ return Math.round(itemValue(it)*1.25); }
 function merchantSheet(o){
   const h = S.hero, full = h.bag.length >= BAG_MAX;
@@ -2313,19 +2272,12 @@ function floorInfoSheet(){
   if(fl.suf) lines.push(`<div class="affix"><h4>${FSUF[fl.suf].name}<small>Floor suffix</small></h4><ul><li>${FSUF[fl.suf].desc}</li></ul></div>`);
   return `<div class="grab"></div><h3 class="sheet-title">Floor ${r.depth}: ${floorName(fl, r.depth)}</h3>
     ${lines.length ? lines.join('') : '<p class="sub">An ordinary floor. Deeper floors roll their own prefixes and suffixes.</p>'}
-    <p class="sub" style="margin-top:8px">Find the stairs to go deeper, or keep exploring for chests and loot. ${r.depth%3===0 ? 'A champion guards the stairs on this floor.' : ''}</p>
-    <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
-}
-function mapSheet(){
-  return `<div class="grab"></div><h3 class="sheet-title">Map</h3>
-    <div class="bigmapwrap"><canvas id="bigmap"></canvas></div>
-    <p class="sub">Yellow: you. White: stairs. Red: monsters. Gold: chests. Blue: shrine. Orange: campfire. Green: merchant.</p>
+    <p class="sub" style="margin-top:8px">Find the stairs to go deeper, or explore other rooms for treasure. Rooms next to ones you’ve visited show what’s inside.${r.depth%3===0 ? ' A champion guards the stairs on this floor.' : ''}</p>
     <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
 function newFloor(depth){
   const r = R();
   r.floor = genFloor(depth);
-  r.pos = {x:r.floor.start[0], y:r.floor.start[1], f:r.floor.startF};
   r.phase = 'explore'; r.msg = null; r.loot = [];
 }
 
@@ -2340,7 +2292,7 @@ function enterDungeon(){
 }
 function startEncounter(src){
   const r = R();
-  if(typeof src === 'string'){ r.monKey = src; r.mon = r.floor.objs[src].m; } else { r.monKey = null; r.mon = src; }
+  if(typeof src === 'string'){ r.monKey = src; r.mon = r.floor.rooms[src].m; } else { r.monKey = null; r.mon = src; }
   const champ = !!r.mon.champion;
   r.pg = rand(0,25); r.mg = rand(0,45); r.mb = {}; r.pb.defend = false; r.phase = 'combat'; r.log = [];
   const n = monName(r.mon);
@@ -2423,7 +2375,7 @@ function playerFlee(){
   if(!canAct()) return;
   const r = R();
   const chance = Math.min(.8, Math.max(.15, .4 + (heroSpd()-monSpd())/250));
-  if(Math.random() < chance){ toast('You escaped. It’s still there.'); nextStep(); return; }
+  if(Math.random() < chance){ toast('You escaped. It’s still there.'); r.fled = true; nextStep(); return; }
   log(`You try to flee, but ${short(r.mon)} cuts you off.`);
   endPlayerAction();
 }
@@ -2564,7 +2516,7 @@ function victory(){
   if(m.stolen) toast(`You got back the ${m.stolen} gold it stole.`);
   S.hero.gold += gold;
   r.reward = {kind:'kill', xp, gold, name:monName(m)};
-  if(r.monKey && r.floor){ delete r.floor.objs[r.monKey]; r.monKey = null; }
+  if(r.monKey && r.floor && r.floor.rooms[r.monKey]){ const rm = r.floor.rooms[r.monKey]; rm.done = true; delete rm.m; r.monKey = null; }
   r.tookAll = false;
   const items = [];
   const ch = .45 + (m.rarity==='magic'?.15:m.rarity==='rare'?.35:0) + (m.champion?.3:0);
@@ -2607,6 +2559,7 @@ function nextStep(){
   const r = R();
   closeSheet();
   r.loot = []; r.phase = 'explore'; r.msg = null; busy = false;
+  if(r.fled){ r.fled = false; const fl = r.floor; if(fl && fl.prev && fl.prev !== fl.cur){ const b = fl.prev; fl.prev = fl.cur; fl.cur = b; r.msg = 'You escape back the way you came.'; } }
   save(); render(); $('#view').scrollTop = 0;
 }
 function goTown(msg){
@@ -2620,7 +2573,7 @@ function findIn(list, id){ const i = list.findIndex(x => x.uid===id); return i<0
 function findItem(id){
   const h = S.hero;
   for(const sl of SLOTS) if(h.equip[sl] && h.equip[sl].uid===id) return h.equip[sl];
-  const mer = S.run && S.run.floor ? (Object.values(S.run.floor.objs).find(x => x.t==='merchant') || {}).items || [] : [];
+  const mer = (merchantRoom() || {}).items || [];
   for(const list of [h.bag, S.stash, S.shop.items, S.run ? S.run.loot : [], mer]){ const f = findIn(list, id); if(f) return f.it; }
   return null;
 }
@@ -2647,7 +2600,7 @@ function useItem(id){
     log(msg);
   } else {
     const r = R(), m = r.mon;
-    if(s.escape){ toast('You read the Escape Scroll and slip away.'); nextStep(); return; }
+    if(s.escape){ toast('You read the Escape Scroll and slip away.'); r.fled = true; nextStep(); return; }
     let dmg = absorb(Math.round(s.dmg*(1+hs.spell/100)*(monStats(m).hide||1))); m.hp -= dmg;
     if(dmg>0){ floatNum(dmg,'mon','crit'); pulse($('#monWrap'),'hit'); }
     if(s.frost) r.mb.slow = {t:3};
@@ -2735,15 +2688,17 @@ const ACT = {
   descend: () => { const r = R(); if(moving) return; closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
     const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
     newFloor(r.depth); save(); render(); $('#view').scrollTop = 0; toast(`Floor ${r.depth}: ${floorName(r.floor, r.depth)}`); },
-  walk: () => walk(),
-  turnL: () => turn(-1),
-  turnR: () => turn(1),
-  turnB: () => turn(2),
-  interact: () => interact(),
-  tapView: () => { if(ahead().obj) interact(); },
+  goRoom: a => goRoom(a),
+  fightRoom: () => { const r = R(); if(r && r.floor.rooms[r.floor.cur].t==='mon') startEncounter(r.floor.cur); },
+  retreat: () => retreat(),
+  disarm: () => disarm(),
+  dash: () => dash(),
+  openChest: () => openChest(),
+  pray: () => pray(),
+  restFire: () => restFire(),
+  trade: () => { const o = merchantRoom(); if(o) openSheet(merchantSheet(o), 'merchant'); },
   floorInfo: () => openSheet(floorInfoSheet()),
-  mapBig: () => { openSheet(mapSheet()); drawMap(true); },
-  mbuy: a => { const r = R(), o = r && r.floor && Object.values(r.floor.objs).find(x => x.t==='merchant'); if(!o) return; const f = findIn(o.items, a); if(!f) return; const p = merchantPrice(f.it); if(S.hero.gold < p || S.hero.bag.length >= BAG_MAX) return; S.hero.gold -= p; o.items.splice(f.i,1); S.hero.bag.push(f.it); toast(`Bought ${itemName(f.it)}.`); save(); updateHud(); openSheet(merchantSheet(o),'merchant'); },
+  mbuy: a => { const o = merchantRoom(); if(!o) return; const f = findIn(o.items, a); if(!f) return; const p = merchantPrice(f.it); if(S.hero.gold < p || S.hero.bag.length >= BAG_MAX) return; S.hero.gold -= p; o.items.splice(f.i,1); S.hero.bag.push(f.it); toast(`Bought ${itemName(f.it)}.`); save(); updateHud(); openSheet(merchantSheet(o),'merchant'); },
   toTown: () => goTown('You return to Emberhold. Sell your loot at the shop.'),
   deadToTown: () => { S.hero.hp = Math.round(heroStats().maxhp*.5); goTown(); },
   shopTab: a => { shopTab = a; render(); },
