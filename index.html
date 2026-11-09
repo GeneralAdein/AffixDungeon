@@ -1997,7 +1997,7 @@ const FSUF = {
   ambush:{name:'of Ambush',desc:'Monsters may jump you in empty rooms.'},
   traps:{name:'of Traps',desc:'Three extra trap rooms.'},
   rest:{name:'of Rest',desc:'A campfire and a shrine are always here.'},
-  mists:{name:'of Mists',desc:'You can’t tell what’s in a room until you step inside.'},
+  echoes:{name:'of Echoes',desc:'You can hear what waits nearby: rooms next to ones you’ve visited show what’s inside.'},
   trade:{name:'of Trade',desc:'A wandering merchant is always here.'}
 };
 const ROOM = {
@@ -2069,7 +2069,7 @@ function genFloor(depth){
 
 /* ---------- what you can see ---------- */
 function shown(fl, k){ return fl.visited[k] || neighbors(fl, k).some(n => fl.visited[n]); }
-function typeKnown(fl, k){ return fl.visited[k] || (fl.suf !== 'mists' && shown(fl, k)); }
+function typeKnown(fl, k){ return fl.visited[k] || (fl.suf === 'echoes' && shown(fl, k)); }
 function pending(rm){ return (rm.t==='mon' && !rm.done) || (rm.t==='trap' && !rm.done); }
 function roomArt(rm){
   if(rm.t==='mon') return rm.done ? null : ART[rm.m.base];
@@ -2087,7 +2087,7 @@ function mapHtml(){
   const cur = fl.rooms[fl.cur], locked = pending(cur);
   let lines = '', tiles = '';
   for(const l of fl.links){
-    const [a,b] = l.split('|'); if(!shown(fl,a) || !shown(fl,b)) continue;
+    const [a,b] = l.split('|'); if(!fl.visited[a] && !fl.visited[b]) continue;   // you only learn a room's exits by standing in it
     const A = fl.rooms[a], B = fl.rooms[b], [ax,ay] = pos(A), [bx,by] = pos(B);
     const walked = fl.visited[a] && fl.visited[b];
     if(A.y === B.y) lines += `<i class="ln h ${walked?'walked':''}" style="left:${Math.min(ax,bx)+TILE}px;top:${ay+TILE/2-2}px;width:${GRID-TILE}px"></i>`;
@@ -2099,7 +2099,7 @@ function mapHtml(){
     const reach = !here && (locked ? k === fl.prev : true);
     const art = known ? roomArt(rm) : null;
     const cls = ['room', here?'here':'', fl.visited[k]?'seen':'unknown', adj && reach ?'adj':'', known && rm.t==='mon' && !rm.done ? 'danger '+(rm.m.rarity||'') : '', known && rm.done && rm.t!=='start' && rm.t!=='stairs' ? 'done' : '', known ? 't-'+rm.t : ''].join(' ');
-    const label = known ? (rm.t==='mon' ? (rm.done ? 'Cleared' : `Lv ${rm.m.lvl}`) : rm.t==='empty' ? '' : ROOM[rm.t].name.split(' ')[0]) : '?';
+    const label = known ? (rm.t==='mon' ? (rm.done ? 'Cleared' : `Lv ${rm.m.lvl}`) : rm.t==='empty' ? '' : ROOM[rm.t].name.split(' ')[0]) : '';
     tiles += `<button class="${cls}" style="left:${x}px;top:${y}px" data-act="goRoom" data-arg="${k}" ${reach?'':'aria-disabled="true"'} aria-label="${known ? ROOM[rm.t].name : 'Unexplored room'}">
       ${art ? `<img src="${art}" alt="">` : `<span class="q">${known ? (rm.t==='empty' ? '' : '·') : '?'}</span>`}
       ${label ? `<span class="rl">${label}</span>` : ''}${here ? '<span class="you">YOU</span>' : ''}</button>`;
@@ -2188,7 +2188,7 @@ function enterRoom(){
     rm.ambushed = true; rm.t = 'mon'; rm.m = genMonster(r.depth, false);
     toast('Something was waiting for you!'); save(); return startEncounter(fl.cur);
   }
-  if(rm.t==='mon' && !rm.done && (fl.pre==='dark' || monStats(rm.m).ambush)){ toast('It strikes first!'); save(); return startEncounter(fl.cur); }
+  if(rm.t==='mon' && !rm.done){ save(); return startEncounter(fl.cur); }
   save(); updateExplore(true);
 }
 function retreat(){
@@ -2272,7 +2272,7 @@ function floorInfoSheet(){
   if(fl.suf) lines.push(`<div class="affix"><h4>${FSUF[fl.suf].name}<small>Floor suffix</small></h4><ul><li>${FSUF[fl.suf].desc}</li></ul></div>`);
   return `<div class="grab"></div><h3 class="sheet-title">Floor ${r.depth}: ${floorName(fl, r.depth)}</h3>
     ${lines.length ? lines.join('') : '<p class="sub">An ordinary floor. Deeper floors roll their own prefixes and suffixes.</p>'}
-    <p class="sub" style="margin-top:8px">Find the stairs to go deeper, or explore other rooms for treasure. Rooms next to ones you’ve visited show what’s inside.${r.depth%3===0 ? ' A champion guards the stairs on this floor.' : ''}</p>
+    <p class="sub" style="margin-top:8px">Find the stairs to go deeper, or explore other rooms for treasure. You won’t know what’s in a room, or where its doors lead, until you step inside.${r.depth%3===0 ? ' A champion guards the stairs on this floor.' : ''}</p>
     <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
 function newFloor(depth){
@@ -2297,7 +2297,7 @@ function startEncounter(src){
   r.pg = rand(0,25); r.mg = rand(0,45); r.mb = {}; r.pb.defend = false; r.phase = 'combat'; r.log = [];
   const n = monName(r.mon);
   log(champ ? `A champion blocks the stairs: <b>${n}</b>.` : `${article(n)} <b>${n}</b> appears.`);
-  if(monStats(r.mon).ambush){ r.mg = 100 + rand(1,10); r.pg = rand(0,20); log('It strikes before you can react!'); }
+  if(monStats(r.mon).ambush || (r.floor && r.floor.pre==='dark')){ r.mg = 100 + rand(1,10); r.pg = rand(0,20); log('It strikes before you can react!'); }
   if(monStats(r.mon).rattle){ r.pb.slow = {t:2}; log('A dry rattle freezes you in place.'); }
   if(monStats(r.mon).snare){ r.pb.slow = {t:2}; log('You step straight into a snare.'); }
   if(monStats(r.mon).stench){ r.pb.weak = {t:3}; log('Its presence makes your arms heavy.'); }

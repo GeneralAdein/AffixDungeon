@@ -15,7 +15,7 @@ Open `index.html` in any modern browser. It's a single self-contained file: no b
 
 ## What's in the game
 
-- **Room-map dungeon floors:** each floor is a randomly generated web of connected rooms on a scrollable map. Tap a connected room to move (or a farther known room to travel there through safe rooms). Rooms can hold monsters, treasure chests (some trapped, some Mimics), trap rooms you disarm or dash through, shrines, campfires, a wandering merchant, and the stairs down. Rooms next to ones you've visited show what's inside, so you can choose your route. Floors roll their own prefixes and suffixes (Dark, Infested, Haunted, Flooded, of Riches, of Ambush, of Traps, of Mists, and more).
+- **Room-map dungeon floors:** each floor is a randomly generated web of connected rooms on a scrollable map. Tap a connected room to move (or a farther known room to travel there through safe rooms). Rooms can hold monsters, treasure chests (some trapped, some Mimics), trap rooms you disarm or dash through, shrines, campfires, a wandering merchant, and the stairs down. Every room stays hidden until you step inside, along with where its doors lead, and fights start the moment you walk into a monster's room. Floors roll their own prefixes and suffixes (Dark, Infested, Haunted, Flooded, of Riches, of Ambush, of Traps, of Echoes, and more).
 
 - **104 monsters** across ants, spiders, flying insects, crawlers, rats, snakes, bears, humanoids (goblinoids, orcs, outlaws, warriors, spellcasters, beastfolk, archers, clerics), undead and dragons. Each has a species trait and an ability pool for its family.
 - **Monster affixes:** 29 prefixes and 21 suffixes, good and bad, including humanoid-only prefixes (Dark, Evil, Hideous, Bulked, Avenged, Holy).
