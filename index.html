@@ -558,6 +558,7 @@ svg[shape-rendering]{display:block}
 .hud-bag.full{border-color:var(--bad);color:var(--bad)}
 .worth{display:inline-flex;align-items:center;gap:4px;font-size:20px;color:var(--rare);border:2px solid currentColor;padding:0 5px;flex:none;font-variant-numeric:tabular-nums}
 .cell .cv{position:absolute;left:4px;bottom:1px;display:inline-flex;align-items:center;gap:3px;font-size:14px;line-height:1;color:var(--rare);font-variant-numeric:tabular-nums}
+.btn.equipnow{background:#2f8a46;color:#ffffff;border-color:var(--frame)}
 .cell .cv .coin{width:9px;height:9px}
 .statline{display:flex;flex-wrap:wrap;gap:2px 14px;margin:8px 0 4px;padding:6px 8px;border:2px solid var(--line);background:var(--panel);font-size:18px;color:var(--muted);cursor:pointer}
 .statline b{font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -1863,7 +1864,7 @@ function itemSheet(it, ctx){
   } else if(ctx==='loot'){
     acts.push(`<button class="btn primary" data-act="take" data-arg="${it.uid}" ${full?'disabled':''}>${full?'Bag is full':'Take'}</button>`);
     if(b.kind==='potion') acts.push(`<button class="btn drink" data-act="drinkLoot" data-arg="${it.uid}" ${potionUseful(it)?'':'disabled'}>${potionUseful(it)?'Drink now':'Already at full health'}</button>`);
-    if(gear) acts.push(`<button class="btn" data-act="equip" data-arg="${it.uid}|loot">Equip now</button>`);
+    if(gear) acts.push(`<button class="btn equipnow" data-act="equip" data-arg="${it.uid}|loot">Equip now</button>`);
     acts.push(backBtn);
   } else if(ctx==='merchant'){
     const p = merchantPrice(it);
