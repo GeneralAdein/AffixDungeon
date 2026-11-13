@@ -1597,13 +1597,13 @@ function shopView(){
 }
 
 const UPGRADES = [
-  {id:'bag', name:'Bigger Pack', desc:'+4 bag slots per level.', max:5, cost:[150,300,600,1200,2400], now:l => `Bag holds ${BAG_BASE+4*l} items`},
-  {id:'train', name:'Training Yard', desc:'+2 stat points per level, yours to spend.', max:5, cost:[200,400,800,1600,3200], now:l => `${l*2} bonus points earned`},
-  {id:'temple', name:'Temple Blessing', desc:'+8% max health per level, forever.', max:3, cost:[250,700,1800], now:l => `+${l*8}% max health`},
-  {id:'apoth', name:'Apothecary', desc:'Start every run with a free Healing Potion per level.', max:3, cost:[120,360,900], now:l => `${l} free potion${l===1?'':'s'} each run`},
-  {id:'smith', name:'Master Smith', desc:'Shop gear is one item level higher per level.', max:3, cost:[300,900,2400], now:l => `Shop gear +${l} levels`},
-  {id:'bank', name:'Bank Vault', desc:'Lose 10% less gold when you die, per level.', max:4, cost:[200,500,1200,2800], now:l => `Death costs ${50-l*10}% of your gold`},
-  {id:'map', name:'Cartographer', desc:'The stairs show on every floor’s map from the start.', max:1, cost:[600], now:l => l ? 'Stairs always marked' : ''}
+  {id:'bag', name:'Bigger Pack', desc:'+4 bag slots per level.', max:5, cost:[1500,4000,10000,25000,60000], now:l => `Bag holds ${BAG_BASE+4*l} items`},
+  {id:'train', name:'Training Yard', desc:'+2 stat points per level, yours to spend.', max:5, cost:[2000,5000,12000,30000,75000], now:l => `${l*2} bonus points earned`},
+  {id:'temple', name:'Temple Blessing', desc:'+8% max health per level, forever.', max:3, cost:[3000,9000,25000], now:l => `+${l*8}% max health`},
+  {id:'apoth', name:'Apothecary', desc:'Start every run with a free Healing Potion per level.', max:3, cost:[1200,4000,12000], now:l => `${l} free potion${l===1?'':'s'} each run`},
+  {id:'smith', name:'Master Smith', desc:'Shop gear is one item level higher per level.', max:3, cost:[2500,8000,24000], now:l => `Shop gear +${l} levels`},
+  {id:'bank', name:'Bank Vault', desc:'Lose 10% less gold when you die, per level.', max:4, cost:[2000,6000,15000,40000], now:l => `Death costs ${50-l*10}% of your gold`},
+  {id:'map', name:'Cartographer', desc:'The stairs show on every floor’s map from the start.', max:1, cost:[8000], now:l => l ? 'Stairs always marked' : ''}
 ];
 function guildView(){
   const t = S.town, g = S.hero.gold;
