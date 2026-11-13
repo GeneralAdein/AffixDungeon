@@ -544,6 +544,35 @@ svg[shape-rendering]{display:block}
 .ctx .span2{grid-column:1/-1}
 .ctx .idle{grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:var(--muted);border:2px dashed var(--line);font-size:18px}
 
+
+/* ===== Gold values, spent points, top-bar inventory, Guild Hall ===== */
+.hud{gap:8px;padding:8px 10px}
+.hud-hp b{display:none}
+.hud-hp span{font-size:18px}
+.hud .xpbar{width:26px}
+.hud .ptsdot{font-size:15px;padding:0 3px}
+.hud-bag{font-size:18px}
+.hud-gold{font-size:19px}
+.hud-bag{display:flex;align-items:center;gap:4px;background:none;border:2px solid var(--line);padding:0 5px;color:var(--ink);font:inherit;min-height:28px;flex:none}
+.hud-bag svg{width:16px;height:16px;color:var(--torch)}
+.hud-bag.full{border-color:var(--bad);color:var(--bad)}
+.worth{display:inline-flex;align-items:center;gap:4px;font-size:20px;color:var(--rare);border:2px solid currentColor;padding:0 5px;flex:none;font-variant-numeric:tabular-nums}
+.cell .cv{position:absolute;left:4px;bottom:0;font-size:14px;color:var(--rare);font-variant-numeric:tabular-nums}
+.cardworth{display:inline-flex;align-items:center;gap:6px;margin:4px 0 2px;font-size:22px;color:var(--rare);border:2px solid currentColor;padding:0 6px}
+.cardworth span:last-child{font-size:15px;color:var(--muted)}
+.bagworth{margin:0 0 8px;color:var(--muted)}
+.bagworth .price{color:var(--rare);font-size:22px}
+.spent{font-style:normal;font-size:15px;color:var(--good);border:2px solid var(--good);padding:0 4px;margin-left:4px;vertical-align:1px}
+.tile.wide{grid-column:1/-1;flex-direction:row;justify-content:center;gap:10px;text-align:left}
+.tile.wide span{max-width:16ch}
+.upg{align-items:center;padding:8px 10px}
+.upgtext{flex:1;min-width:0}
+.upips{display:inline-flex;gap:3px;vertical-align:2px}
+.upips i{width:9px;height:9px;border:2px solid var(--muted)}
+.upips i.on{background:var(--torch);border-color:var(--torch)}
+.now{color:var(--good)}
+.maxed{color:var(--good);border:2px solid var(--good);padding:0 6px;flex:none}
+
 @media (prefers-reduced-motion: reduce){
   .bob,.ghost,.aura,.parts span,.thorn-ring,.fx-frenzied .bob,.fx-ghostly .bob,.sfx-clumsiness .bob{animation:none !important}
   .sfx-speed .ghost{opacity:.15;transform:translateX(-10%)}
@@ -555,6 +584,7 @@ svg[shape-rendering]{display:block}
   <header class="hud" id="hud">
     <div class="hud-hp"><b>HP</b><div class="bar hpbar"><i id="hpFill"></i></div><span id="hpTxt"></span></div>
     <button class="hud-lv" data-act="stats" aria-label="Open character stats"><span id="lvTxt"></span><div class="bar xpbar"><i id="xpFill"></i></div></button>
+    <button class="hud-bag" id="hudBag" data-act="bag" aria-label="Open inventory"><span id="bagIco"></span><span id="bagTxt"></span></button>
     <div class="hud-gold"><span class="coin"></span><span id="goldTxt"></span></div>
     <div id="heroFloat" class="floats hero-floats"></div>
   </header>
@@ -567,7 +597,7 @@ svg[shape-rendering]{display:block}
 "use strict";
 /* ============ helpers ============ */
 const SAVE_KEY = 'affix-deep-v2';
-const BAG_MAX = 20;
+const BAG_BASE = 20;
 const $ = s => document.querySelector(s);
 const rand = (a,b) => a + Math.random()*(b-a);
 const pick = a => a[Math.floor(Math.random()*a.length)];
@@ -723,6 +753,7 @@ const ICON = {
   tavern: PI(['..w.w.w.....','.########...','.#ww....###.','.#y.....#.#.','.#y.....#.#.','.#y.....#.#.','.#y.....###.','.#y.....#...','.#yyyyyy#...','.########...','............','............']),
   hero: PI(['....####....','...#wwww#...','...#w..##...','...######...','....####....','..########..','.#.##ww##.#.','.#.######.#.','...#yyyy#...','...##..##...','...##..##...','..###..###..']),
   bag: PI(['....####....','...#....#...','..########..','.#ww......#.','.#w.......#.','.#.######.#.','.#.#.yy.#.#.','.#.######.#.','.#........#.','.##########.','............','............']),
+  guild: PI(['.....##.....','....####....','...######...','..########..','.##########.','############','.#w#w##w#w#.','.#w#w##w#w#.','.#w#w##w#w#.','.#w#w##w#w#.','.####yy####.','############']),
   back: PI(['....#...','...##...','..######','.#######','..######','...##...','....#...','........'])
 };
 
@@ -1221,15 +1252,16 @@ function mk(base, ilvl=1, pre=null, suf=null){
   return it;
 }
 function emptyEquip(){ const e = {}; for(const s of SLOTS) e[s] = null; return e; }
+function bagMax(){ return BAG_BASE + 4*((S && S.town && S.town.bag) || 0); }
 function newGame(){
   const equip = emptyEquip(); equip.weapon = mk('shortsword'); equip.body = mk('padded');
-  S = {v:2, hero:{lvl:1,xp:0,hp:1,gold:40,attr:{str:0,dex:0,vit:0,int:0,lck:0},points:0,equip,bag:[mk('potion'),mk('potion'),mk('flame')],deepest:0}, stash:[], shop:null, run:null, screen:'town'};
+  S = {v:2, hero:{lvl:1,xp:0,hp:1,gold:40,attr:{str:0,dex:0,vit:0,int:0,lck:0},points:0,equip,bag:[mk('potion'),mk('potion'),mk('flame')],deepest:0}, stash:[], shop:null, run:null, screen:'town', town:{}};
   S.hero.hp = heroStats().maxhp;
   S.shop = genShop();
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function load(){
-  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
+  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
   return false;
 }
 
@@ -1287,6 +1319,7 @@ function heroLedger(){
   for(const a of ATTR_KEYS){ put(a, 'Base', 5, 'base'); put(a, 'Points you spent', h.attr[a], 'points'); gear(a); }
   const A = {}; for(const a of ATTR_KEYS) A[a] = Math.max(0, tot(a));
   put('maxhp', 'Base', 50, 'base'); put('maxhp', `Level ${L}`, 8*(L-1), 'level'); put('maxhp', `Vitality ${A.vit}`, (A.vit-5)*4, 'attr'); gear('maxhp');
+  const tb = (S.town && S.town.temple) || 0; if(tb) put('maxhp', `Temple Blessing ${tb}`, Math.round(tot('maxhp')*.08*tb), 'town');
   put('spell', `Intelligence ${A.int}`, (A.int-5)*3, 'attr'); gear('spell');
   const magic = items.some(g => g.s.magic), venom = items.some(g => g.s.venom);
   put('atk', 'Base', 2, 'base'); put('atk', `Level ${L}`, L-1, 'level'); gear('atk');
@@ -1408,7 +1441,8 @@ function shopLvl(){ return Math.max(1, S.hero.deepest||1); }
 function genShop(){
   const L = shopLvl(), items = [];
   const kinds = ['weapon','weapon','shield','head','body','body','hands','feet','neck','ring'];
-  for(let i=0;i<8;i++) items.push(genItem(L + pick([-1,0,0,1]), pick(kinds)));
+  const sm = (S && S.town && S.town.smith) || 0;
+  for(let i=0;i<8;i++) items.push(genItem(L + sm + pick([-1,0,0,1]), pick(kinds)));
   return {items};
 }
 const STAPLES = ['potion','flame','escape'];
@@ -1447,6 +1481,8 @@ function updateHud(){
   $('#lvTxt').innerHTML = `Lv ${h.lvl}${h.points?' <span class="ptsdot">+'+h.points+'</span>':''}`;
   $('#xpFill').style.width = (h.xp/xpNeed(h.lvl)*100) + '%';
   $('#goldTxt').textContent = h.gold;
+  const bi = $('#bagIco'); if(bi && !bi.innerHTML) bi.innerHTML = ICON.bag;
+  $('#bagTxt').textContent = `${h.bag.length}/${bagMax()}`; $('#hudBag').classList.toggle('full', h.bag.length >= bagMax());
 }
 let toastTimer = null;
 function toast(msg){
@@ -1485,6 +1521,7 @@ function render(){
   if(S.run) v.innerHTML = dungeonView();
   else if(S.screen==='shop') v.innerHTML = shopView();
   else if(S.screen==='tavern') v.innerHTML = tavernView();
+  else if(S.screen==='guild') v.innerHTML = guildView();
   else v.innerHTML = townView();
   if(S.run && S.run.phase==='combat') updateCombatUI();
   if(S.run && S.run.phase==='explore') centerMap(false);
@@ -1492,8 +1529,9 @@ function render(){
 function itemRow(it, ctx, right=''){
   return `<div class="row r-${it.rarity}"><button class="rowmain" data-act="item" data-arg="${it.uid}|${ctx}">
     <span class="ico">${ICON[IBASE[it.base].icon]}</span>
-    <span><span class="nm">${itemNameHtml(it)}</span><br><span class="sub">Lv ${it.ilvl} ${kindName(it)}, ${itemShort(it)}</span></span></button>${right}</div>`;
+    <span><span class="nm">${itemNameHtml(it)}</span><br><span class="sub">Lv ${it.ilvl} ${kindName(it)}, ${itemShort(it)}</span></span></button>${['shopBuy','merchant','shopSell'].includes(ctx) ? '' : worthTag(it)}${right}</div>`;
 }
+function worthTag(it){ return `<span class="worth" title="Sells for ${sellPrice(it)} gold"><span class="coin"></span>${sellPrice(it)}</span>`; }
 function priceTag(n){ return `<span class="price"><span class="coin"></span>${n}</span>`; }
 function dollHtml(){
   const h = S.hero, twoH = h.equip.weapon && IBASE[h.equip.weapon.base].two;
@@ -1518,8 +1556,9 @@ function townView(){
     <div class="tiles">
       <button class="tile" data-act="go" data-arg="shop">${ICON.shop}<b>Shop</b><span>Buy and sell gear</span></button>
       <button class="tile" data-act="go" data-arg="tavern">${ICON.tavern}<b>Tavern</b><span>Rest and store items</span></button>
-      <button class="tile" data-act="bag">${ICON.bag}<b>Bag</b><span>${h.bag.length} of ${BAG_MAX} slots used</span></button>
+      <button class="tile" data-act="bag">${ICON.bag}<b>Bag</b><span>${h.bag.length} of ${bagMax()} slots used</span></button>
       <button class="tile" data-act="stats">${ICON.hero}<b>Hero</b><span>${h.points ? `${h.points} points to spend` : `Stats and attributes`}</span></button>
+      <button class="tile wide" data-act="go" data-arg="guild">${ICON.guild}<b>Guild Hall</b><span>Permanent upgrades for every run</span></button>
     </div>
     <h3 class="section-h">Equipped</h3>
     ${dollHtml()}
@@ -1529,7 +1568,7 @@ function townView(){
 }
 
 function shopView(){
-  const h = S.hero, full = h.bag.length >= BAG_MAX;
+  const h = S.hero, full = h.bag.length >= bagMax();
   let body = '';
   if(shopTab==='buy'){
     const sl = stapleLvl();
@@ -1553,10 +1592,31 @@ function shopView(){
     ${body}</div>`;
 }
 
+const UPGRADES = [
+  {id:'bag', name:'Bigger Pack', desc:'+4 bag slots per level.', max:5, cost:[150,300,600,1200,2400], now:l => `Bag holds ${BAG_BASE+4*l} items`},
+  {id:'train', name:'Training Yard', desc:'+2 stat points per level, yours to spend.', max:5, cost:[200,400,800,1600,3200], now:l => `${l*2} bonus points earned`},
+  {id:'temple', name:'Temple Blessing', desc:'+8% max health per level, forever.', max:3, cost:[250,700,1800], now:l => `+${l*8}% max health`},
+  {id:'apoth', name:'Apothecary', desc:'Start every run with a free Healing Potion per level.', max:3, cost:[120,360,900], now:l => `${l} free potion${l===1?'':'s'} each run`},
+  {id:'smith', name:'Master Smith', desc:'Shop gear is one item level higher per level.', max:3, cost:[300,900,2400], now:l => `Shop gear +${l} levels`},
+  {id:'bank', name:'Bank Vault', desc:'Lose 10% less gold when you die, per level.', max:4, cost:[200,500,1200,2800], now:l => `Death costs ${50-l*10}% of your gold`},
+  {id:'map', name:'Cartographer', desc:'The stairs show on every floor’s map from the start.', max:1, cost:[600], now:l => l ? 'Stairs always marked' : ''}
+];
+function guildView(){
+  const t = S.town, g = S.hero.gold;
+  const rows = UPGRADES.map(u => {
+    const lv = t[u.id]||0, maxed = lv >= u.max, cost = maxed ? 0 : u.cost[lv];
+    const pips = Array.from({length:u.max}, (_,i) => `<i class="${i<lv?'on':''}"></i>`).join('');
+    return `<div class="row upg"><div class="upgtext"><span class="nm">${u.name}</span> <span class="upips" aria-label="Level ${lv} of ${u.max}">${pips}</span><br><span class="sub">${u.desc}</span>${lv ? `<br><span class="sub now">Now: ${u.now(lv)}</span>` : ''}</div>
+      ${maxed ? '<span class="maxed">Maxed</span>' : `<button class="btn sm" data-act="upgrade" data-arg="${u.id}" ${g<cost?'disabled':''}>${priceTag(cost)}</button>`}</div>`;
+  }).join('');
+  return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
+    <h1>Guild Hall</h1><p class="lead">Upgrades bought here are permanent. They stay with you through every run, even when you die.</p>
+    <div class="rows" style="margin-top:12px">${rows}</div></div>`;
+}
 function restCost(){ return 5 + 3*S.hero.lvl; }
 function tavernView(){
   const h = S.hero, hs = heroStats(), hurt = h.hp < hs.maxhp, c = restCost();
-  const stash = S.stash.length ? S.stash.map(it => itemRow(it, 'stash', `<button class="btn sm" data-act="retrieve" data-arg="${it.uid}" ${h.bag.length>=BAG_MAX?'disabled':''}>Take</button>`)).join('') : `<p class="empty-note">Nothing stored. Items here are safe if you die.</p>`;
+  const stash = S.stash.length ? S.stash.map(it => itemRow(it, 'stash', `<button class="btn sm" data-act="retrieve" data-arg="${it.uid}" ${h.bag.length>=bagMax()?'disabled':''}>Take</button>`)).join('') : `<p class="empty-note">Nothing stored. Items here are safe if you die.</p>`;
   const bag = h.bag.length ? h.bag.map(it => itemRow(it, 'tavernBag', `<button class="btn sm" data-act="store" data-arg="${it.uid}">Store</button>`)).join('') : `<p class="empty-note">Your bag is empty.</p>`;
   return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
     <h1>The Tavern</h1><p class="lead">${hurt ? `You have ${h.hp} of ${hs.maxhp} health.` : 'You’re fully rested.'}</p>
@@ -1565,7 +1625,7 @@ function tavernView(){
       <button class="btn" data-act="restFree" ${!hurt?'disabled':''}>Sleep in the stable for free (heals half)</button>
     </div>
     <h3 class="section-h">Your stash (${S.stash.length})</h3><div class="rows">${stash}</div>
-    <h3 class="section-h">Your bag (${h.bag.length} of ${BAG_MAX})</h3><div class="rows">${bag}</div></div>`;
+    <h3 class="section-h">Your bag (${h.bag.length} of ${bagMax()})</h3><div class="rows">${bag}</div></div>`;
 }
 
 function floorBar(){
@@ -1597,7 +1657,7 @@ function dungeonView(){
       </div></div>`;
   }
   if(r.phase==='loot'){
-    const rw = r.reward, n = r.loot.length, full = S.hero.bag.length >= BAG_MAX, chest = rw.kind==='chest';
+    const rw = r.reward, n = r.loot.length, full = S.hero.bag.length >= bagMax(), chest = rw.kind==='chest';
     const moveLabel = 'Keep exploring';
     const lootList = r.loot.map(it => itemRow(it,'loot',`<div class="rbtns">${IBASE[it.base].kind==='potion' ? `<button class="btn sm drink" data-act="drinkLoot" data-arg="${it.uid}" ${potionUseful(it)?'':'disabled'}>Drink</button>` : ''}<button class="btn sm" data-act="take" data-arg="${it.uid}" ${full?'disabled':''}>Take</button></div>`)).join('');
     return `<div class="dun after">${floorBar()}
@@ -1643,7 +1703,7 @@ function dungeonView(){
 
 function runFooter(){
   const h = S.hero;
-  return `<div class="runfoot"><button class="footbtn" data-act="bag">${ICON.bag}<span>Inventory ${h.bag.length}/${BAG_MAX}</span></button><button class="footbtn" data-act="stats">${ICON.hero}<span>Character${h.points?` <span class="ptsdot">+${h.points}</span>`:''}</span></button></div>`;
+  return `<div class="runfoot"><button class="footbtn" data-act="bag">${ICON.bag}<span>Inventory ${h.bag.length}/${bagMax()}</span></button><button class="footbtn" data-act="stats">${ICON.hero}<span>Character${h.points?` <span class="ptsdot">+${h.points}</span>`:''}</span></button></div>`;
 }
 function canAct(){ const r = R(); return !!r && r.phase==='combat' && !busy && r.pg >= 100; }
 function statusChips(obj, isHero){
@@ -1716,22 +1776,23 @@ function heroStatGrid(hs){
 }
 function bagSheet(){
   const h = S.hero, hs = heroStats();
-  let cells = h.bag.map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span>${upgradeMark(it)}</button>`).join('');
-  for(let i=h.bag.length;i<BAG_MAX;i++) cells += `<div class="cell empty"></div>`;
+  let cells = h.bag.map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv">${sellPrice(it)}</span>${upgradeMark(it)}</button>`).join('');
+  for(let i=h.bag.length;i<bagMax();i++) cells += `<div class="cell empty"></div>`;
   const lootBtn = '';
   return `<div class="grab"></div><h3 class="sheet-title">Inventory</h3>
+    <p class="bagworth">Everything in your bag sells for ${priceTag(h.bag.reduce((a,it)=>a+sellPrice(it),0))}</p>
     ${dollHtml()}
     ${heroStatGrid(hs)}
-    <h3 class="section-h" style="margin-top:4px">Bag <small class="sub">${h.bag.length} of ${BAG_MAX}</small></h3>
+    <h3 class="section-h" style="margin-top:4px">Bag <small class="sub">${h.bag.length} of ${bagMax()}</small></h3>
     <p class="sub" style="margin-bottom:6px">Tap an item to compare it with what you’re wearing. ▲ marks a likely upgrade.</p>
     <div class="grid">${cells}</div>
     <div class="sheet-actions">${lootBtn}<button class="btn" data-act="stats">Character stats${S.hero.points?` (+${S.hero.points})`:''}</button><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
 function lootSheet(){
-  const r = R(), h = S.hero, full = h.bag.length >= BAG_MAX;
+  const r = R(), h = S.hero, full = h.bag.length >= bagMax();
   const rows = r.loot.map(it => itemRow(it,'loot',`<button class="btn sm" data-act="take" data-arg="${it.uid}" ${full?'disabled':''}>Pick up</button>`)).join('');
   return `<div class="grab"></div><h3 class="sheet-title">Loot</h3>
-    <p class="sub">Your bag: ${h.bag.length} of ${BAG_MAX}. Tap an item to compare it with your gear.</p>
+    <p class="sub">Your bag: ${h.bag.length} of ${bagMax()}. Tap an item to compare it with your gear.</p>
     <div class="rows" style="margin-top:8px">${rows}</div>
     <div class="sheet-actions">
       <button class="btn primary" data-act="takeAll" ${full?'disabled':''}>Pick up all</button>
@@ -1760,8 +1821,9 @@ function itemCard(it, title){
     `<div class="afh ${a.neg?'negh':''}">${a.name}</div><ul>${itemAffixLines(a,it).map(l=>`<li class="${l.good?'up':'down'}">${l.t}</li>`).join('')}</ul>`).join('');
   return `<div class="card r-${it.rarity} ${title==='Equipped'?'cur':''}"><div class="k">${title}</div>
     <div class="cn">${itemNameHtml(it)}</div><div class="sub">Lv ${it.ilvl} ${kindName(it)}</div>
+    <div class="cardworth">${priceTag(sellPrice(it))}<span>sell value</span></div>
     <ul class="basel">${base.join('')}</ul>${aff}
-    <div class="sub" style="margin-top:6px">Sells for ${sellPrice(it)} gold</div></div>`;
+    </div>`;
 }
 function swapDelta(it){
   const slot = IBASE[it.base].kind, a = heroStats(), b = heroStatsWith(slot, it);
@@ -1777,7 +1839,7 @@ function swapDelta(it){
 function itemSheet(it, ctx){
   const b = IBASE[it.base], h = S.hero;
   const inCombat = !!(S.run && S.run.phase==='combat');
-  const full = h.bag.length >= BAG_MAX;
+  const full = h.bag.length >= bagMax();
   const gear = isGear(it);
   const backAct = (ctx==='bag'||ctx==='equipped') ? 'bag' : 'closeSheet';
   const backBtn = `<button class="btn" data-act="${backAct}">${backAct==='closeSheet'?'Close':'Back'}</button>`;
@@ -1932,7 +1994,7 @@ const DERIVED = [
 ];
 const ALWAYS = new Set(['maxhp','atk','def','spd','crit','dodge','block','spell']);
 const fmt = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
-function statGroup(k, label, unit, desc, total, entries, modTypes, raise){
+function statGroup(k, label, unit, desc, total, entries, modTypes, raise, spent=0){
   const mod = r1(entries.filter(e => modTypes.includes(e.type)).reduce((a,e)=>a+e.v,0));
   const open = openStats.has(k);
   const modHtml = mod ? `<span class="mod ${mod>0?'up':'down'}">(${sgn(+fmt(mod))}${unit})</span>` : `<span class="mod zero">(±0)</span>`;
@@ -1944,7 +2006,7 @@ function statGroup(k, label, unit, desc, total, entries, modTypes, raise){
   }).join('');
   return `<div class="sgroup ${open?'open':''}">
     <div class="srow"><button class="smain" data-act="statOpen" data-arg="${k}" aria-expanded="${open}">
-      <span class="sl">${label}</span><span class="sv">${fmt(total)}${unit}</span>${modHtml}<span class="caret" aria-hidden="true">▸</span></button>
+      <span class="sl">${label}${spent ? ` <em class="spent" title="Points you spent">+${spent}</em>` : ''}</span><span class="sv">${fmt(total)}${unit}</span>${modHtml}<span class="caret" aria-hidden="true">▸</span></button>
       ${raise ? `<button class="btn sm raise" data-act="raise" data-arg="${k}" aria-label="Spend a point on ${label}">+1</button>` : ''}</div>
     ${open ? `<div class="sbreak"><p class="sub">${desc}</p><ul>${rows || '<li><span>Nothing affects this yet</span><b>0</b></li>'}<li class="tot"><span>Total</span><b>${fmt(total)}${unit}</b></li></ul></div>` : ''}
   </div>`;
@@ -1952,8 +2014,8 @@ function statGroup(k, label, unit, desc, total, entries, modTypes, raise){
 function statsSheet(){
   const h = S.hero, {led, A} = heroLedger(), hs = heroStats();
   const spent = ATTR_KEYS.reduce((a,k)=>a+h.attr[k],0);
-  const attrs = ATTRS.map(([k,l]) => statGroup(k, l, '', ATTR_DESC[k], A[k], led[k]||[], ['gear','cap'], h.points>0)).join('');
-  const derived = DERIVED.filter(([k]) => ALWAYS.has(k) || (led[k]||[]).length).map(([k,l,u,d]) => statGroup(k, l, u, d, hs[k], led[k]||[], ['attr','gear','cap'], false)).join('');
+  const attrs = ATTRS.map(([k,l]) => statGroup(k, l, '', ATTR_DESC[k], A[k], led[k]||[], ['gear','cap'], h.points>0, h.attr[k])).join('');
+  const derived = DERIVED.filter(([k]) => ALWAYS.has(k) || (led[k]||[]).length).map(([k,l,u,d]) => statGroup(k, l, u, d, hs[k], led[k]||[], ['attr','gear','cap','town'], false)).join('');
   const pb = pbuffs(), fx = [];
   if(S.run && S.run.phase==='combat'){
     if(pb.weak) fx.push(['Cursed','Damage −30%','down']); if(pb.corrode) fx.push(['Corroded','Armor −50%','down']); if(pb.slow) fx.push(['Slowed','Speed −40%','down']);
@@ -1964,7 +2026,7 @@ function statsSheet(){
     <p class="sub">Level ${h.lvl}, ${h.xp} of ${xpNeed(h.lvl)} experience to level ${h.lvl+1}. Tap any stat to see what’s affecting it.</p>
     ${h.points ? `<div class="pts">You have ${h.points} point${h.points===1?'':'s'} to spend. You get ${POINTS_PER_LEVEL} each level.</div>` : ''}
     <h3 class="section-h">Attributes</h3>
-    <p class="sub legend">Number in brackets: bonus or penalty from your gear.</p>
+    <p class="sub legend">Green tag: points you’ve spent. Number in brackets: bonus or penalty from your gear.</p>
     ${attrs}
     <h3 class="section-h">Combat stats</h3>
     <p class="sub legend">Number in brackets: everything beyond your base and level.</p>
@@ -2068,8 +2130,9 @@ function genFloor(depth){
 }
 
 /* ---------- what you can see ---------- */
-function shown(fl, k){ return fl.visited[k] || neighbors(fl, k).some(n => fl.visited[n]); }
-function typeKnown(fl, k){ return fl.visited[k] || (fl.suf === 'echoes' && shown(fl, k)); }
+const charted = (fl, k) => !!(S.town && S.town.map && fl.rooms[k] && fl.rooms[k].t==='stairs');
+function shown(fl, k){ return fl.visited[k] || charted(fl, k) || neighbors(fl, k).some(n => fl.visited[n]); }
+function typeKnown(fl, k){ return fl.visited[k] || charted(fl, k) || (fl.suf === 'echoes' && shown(fl, k)); }
 function pending(rm){ return (rm.t==='mon' && !rm.done) || (rm.t==='trap' && !rm.done); }
 function roomArt(rm){
   if(rm.t==='mon') return rm.done ? null : ART[rm.m.base];
@@ -2245,7 +2308,7 @@ function pray(){
   const roll = Math.random();
   if(roll < .45){ h.hp = hs.maxhp; r.msg = 'Warm light washes over you. Health fully restored.'; }
   else if(roll < .7){ const xp = 12*r.depth; gainXp(xp); r.msg = `Visions of the deep fill your mind. You gain ${xp} experience.`; }
-  else if(roll < .85){ const it = genItem(r.depth+1); if(h.bag.length < BAG_MAX){ h.bag.push(it); r.msg = `An offering appears on the altar: ${itemName(it)}.`; } else r.msg = 'An offering appears, but your bag is full.'; }
+  else if(roll < .85){ const it = genItem(r.depth+1); if(h.bag.length < bagMax()){ h.bag.push(it); r.msg = `An offering appears on the altar: ${itemName(it)}.`; } else r.msg = 'An offering appears, but your bag is full.'; }
   else { const d = Math.round(hs.maxhp*.1); h.hp = Math.max(1, h.hp - d); r.msg = `The shrine is angry. Cold fire burns you for ${d}.`; ouch(); }
   save(); updateHud(); updateExplore();
 }
@@ -2259,7 +2322,7 @@ function restFire(){
 function merchantRoom(){ const r = R(); return r && r.floor && r.floor.rooms ? Object.values(r.floor.rooms).find(x => x.t==='merchant') : null; }
 function merchantPrice(it){ return Math.round(itemValue(it)*1.25); }
 function merchantSheet(o){
-  const h = S.hero, full = h.bag.length >= BAG_MAX;
+  const h = S.hero, full = h.bag.length >= bagMax();
   const rows = o.items.length ? o.items.map(it => itemRow(it, 'merchant', `<button class="btn sm" data-act="mbuy" data-arg="${it.uid}" ${h.gold<merchantPrice(it)||full?'disabled':''}>${priceTag(merchantPrice(it))}</button>`)).join('') : '<p class="empty-note">Sold out.</p>';
   return `<div class="grab"></div><h3 class="sheet-title">Wandering Merchant</h3>
     <p class="sub">“Prices are a little higher down here. So are the risks.” You have ${h.gold} gold.</p>
@@ -2287,6 +2350,9 @@ function enterDungeon(){
   S.run = {depth:1, mon:null, pg:0, mg:0, log:[], pb:{}, mb:{}, phase:'explore', loot:[], kills:0};
   newFloor(1);
   S.hero.deepest = Math.max(S.hero.deepest, 1);
+  const ap = (S.town && S.town.apoth) || 0; let gave = 0;
+  for(let i=0; i<ap; i++) if(S.hero.bag.length < bagMax()){ S.hero.bag.push(mk('potion', stapleLvl())); gave++; }
+  if(gave) setTimeout(() => toast(`The apothecary slips you ${gave} Healing Potion${gave===1?'':'s'}.`), 1600);
   save(); render(); $('#view').scrollTop = 0;
   toast(`Floor 1: ${floorName(S.run.floor, 1)}`);
 }
@@ -2549,7 +2615,7 @@ function onDeath(){
   const r = R(); if(r.phase==='dead') return;
   r.phase = 'dead'; S.hero.hp = 0; updateHud();
   r.killer = monName(r.mon);
-  r.lostItems = S.hero.bag.length; r.lostGold = Math.floor(S.hero.gold/2);
+  r.lostItems = S.hero.bag.length; r.lostGold = Math.floor(S.hero.gold*(.5 - .1*((S.town && S.town.bank) || 0)));
   S.hero.bag = []; S.hero.gold -= r.lostGold;
   save();
   busy = true;
@@ -2618,7 +2684,7 @@ function equipItem(arg){
   if(slot==='weapon' && IBASE[it.base].two && h.equip.shield) displaced.push(h.equip.shield);
   if(slot==='shield' && h.equip.weapon && IBASE[h.equip.weapon.base].two) displaced.push(h.equip.weapon);
   const after = h.bag.length - (from==='bag' ? 1 : 0) + displaced.length;
-  if(after > BAG_MAX){ toast('Make room in your bag first.'); return; }
+  if(after > bagMax()){ toast('Make room in your bag first.'); return; }
   list.splice(f.i, 1);
   for(const d of displaced){ for(const sl of SLOTS) if(h.equip[sl] && h.equip[sl].uid===d.uid) h.equip[sl] = null; }
   h.equip[slot] = it;
@@ -2631,7 +2697,7 @@ function equipItem(arg){
 function unequip(slot){
   const h = S.hero;
   if(S.run && S.run.phase==='combat') return toast('You can’t change gear mid-fight.');
-  if(!h.equip[slot]) return; if(h.bag.length >= BAG_MAX) return toast('Your bag is full.');
+  if(!h.equip[slot]) return; if(h.bag.length >= bagMax()) return toast('Your bag is full.');
   h.bag.push(h.equip[slot]); h.equip[slot] = null;
   h.hp = Math.min(h.hp, heroStats().maxhp);
   save(); render(); openSheet(bagSheet(),'bag');
@@ -2653,7 +2719,7 @@ function drinkLoot(id){
 }
 function takeLoot(id){
   const r = R(); const f = r && findIn(r.loot, id); if(!f) return;
-  if(S.hero.bag.length >= BAG_MAX) return toast('Your bag is full. Drop or equip something first.');
+  if(S.hero.bag.length >= bagMax()) return toast('Your bag is full. Drop or equip something first.');
   r.loot.splice(f.i,1); S.hero.bag.push(f.it);
   toast(`Picked up ${itemName(f.it)}.`);
   save(); render();
@@ -2683,7 +2749,7 @@ const ACT = {
   drop: a => { const f = findIn(S.hero.bag, a); if(!f) return; S.hero.bag.splice(f.i,1); toast(`Dropped ${itemName(f.it)}.`); save(); render(); openSheet(bagSheet(),'bag'); },
   take: a => takeLoot(a),
   drinkLoot: a => drinkLoot(a),
-  takeAll: () => { const r = R(); let n = 0; while(r.loot.length && S.hero.bag.length < BAG_MAX){ S.hero.bag.push(r.loot.shift()); n++; } toast(r.loot.length ? 'Your inventory is full.' : `Took ${n} item${n===1?'':'s'}.`); if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); },
+  takeAll: () => { const r = R(); let n = 0; while(r.loot.length && S.hero.bag.length < bagMax()){ S.hero.bag.push(r.loot.shift()); n++; } toast(r.loot.length ? 'Your inventory is full.' : `Took ${n} item${n===1?'':'s'}.`); if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); },
   next: () => nextStep(),
   descend: () => { const r = R(); if(moving) return; closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
     const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
@@ -2698,20 +2764,26 @@ const ACT = {
   restFire: () => restFire(),
   trade: () => { const o = merchantRoom(); if(o) openSheet(merchantSheet(o), 'merchant'); },
   floorInfo: () => openSheet(floorInfoSheet()),
-  mbuy: a => { const o = merchantRoom(); if(!o) return; const f = findIn(o.items, a); if(!f) return; const p = merchantPrice(f.it); if(S.hero.gold < p || S.hero.bag.length >= BAG_MAX) return; S.hero.gold -= p; o.items.splice(f.i,1); S.hero.bag.push(f.it); toast(`Bought ${itemName(f.it)}.`); save(); updateHud(); openSheet(merchantSheet(o),'merchant'); },
+  mbuy: a => { const o = merchantRoom(); if(!o) return; const f = findIn(o.items, a); if(!f) return; const p = merchantPrice(f.it); if(S.hero.gold < p || S.hero.bag.length >= bagMax()) return; S.hero.gold -= p; o.items.splice(f.i,1); S.hero.bag.push(f.it); toast(`Bought ${itemName(f.it)}.`); save(); updateHud(); openSheet(merchantSheet(o),'merchant'); },
   toTown: () => goTown('You return to Emberhold. Sell your loot at the shop.'),
   deadToTown: () => { S.hero.hp = Math.round(heroStats().maxhp*.5); goTown(); },
   shopTab: a => { shopTab = a; render(); },
-  buy: a => { const f = findIn(S.shop.items, a); if(!f) return; const p = itemValue(f.it); if(S.hero.gold < p || S.hero.bag.length >= BAG_MAX) return; S.hero.gold -= p; S.shop.items.splice(f.i,1); S.hero.bag.push(f.it); closeSheet(); toast(`Bought ${itemName(f.it)}.`); save(); render(); },
-  buyStaple: a => { const it = mk(a, stapleLvl()); const p = itemValue(it); if(S.hero.gold < p || S.hero.bag.length >= BAG_MAX) return; S.hero.gold -= p; S.hero.bag.push(it); toast(`Bought ${itemName(it)}.`); save(); render(); },
+  buy: a => { const f = findIn(S.shop.items, a); if(!f) return; const p = itemValue(f.it); if(S.hero.gold < p || S.hero.bag.length >= bagMax()) return; S.hero.gold -= p; S.shop.items.splice(f.i,1); S.hero.bag.push(f.it); closeSheet(); toast(`Bought ${itemName(f.it)}.`); save(); render(); },
+  buyStaple: a => { const it = mk(a, stapleLvl()); const p = itemValue(it); if(S.hero.gold < p || S.hero.bag.length >= bagMax()) return; S.hero.gold -= p; S.hero.bag.push(it); toast(`Bought ${itemName(it)}.`); save(); render(); },
   sell: a => { const f = findIn(S.hero.bag, a); if(!f) return; const p = sellPrice(f.it); S.hero.gold += p; S.hero.bag.splice(f.i,1); closeSheet(); toast(`Sold for ${p} gold.`); save(); render(); },
   sellGear: () => { const gear = S.hero.bag.filter(isGear); const p = gear.reduce((a,it)=>a+sellPrice(it),0); S.hero.bag = S.hero.bag.filter(it => !isGear(it)); S.hero.gold += p; toast(`Sold ${gear.length} item${gear.length===1?'':'s'} for ${p} gold.`); save(); render(); },
   restock: () => { if(S.hero.gold < 15) return; S.hero.gold -= 15; S.shop = genShop(); save(); render(); },
   rest: () => { const c = restCost(); if(S.hero.gold < c) return; S.hero.gold -= c; S.hero.hp = heroStats().maxhp; toast('You sleep soundly. Health fully restored.'); save(); render(); },
   restFree: () => { const mx = heroStats().maxhp; S.hero.hp += Math.ceil((mx - S.hero.hp)/2); toast('The straw is itchy, but you feel better.'); save(); render(); },
   store: a => { const f = findIn(S.hero.bag, a); if(!f) return; S.hero.bag.splice(f.i,1); S.stash.push(f.it); closeSheet(); save(); render(); },
-  retrieve: a => { const f = findIn(S.stash, a); if(!f || S.hero.bag.length >= BAG_MAX) return; S.stash.splice(f.i,1); S.hero.bag.push(f.it); closeSheet(); save(); render(); },
+  retrieve: a => { const f = findIn(S.stash, a); if(!f || S.hero.bag.length >= bagMax()) return; S.stash.splice(f.i,1); S.hero.bag.push(f.it); closeSheet(); save(); render(); },
   resetAsk: () => openSheet(`<div class="grab"></div><h3 class="sheet-title">Start a new character?</h3><p class="lead" style="margin-top:8px">This erases your level, gold, gear and stash.</p><div class="sheet-actions"><button class="btn" data-act="closeSheet">Keep playing</button><button class="btn primary" data-act="reset">Start over</button></div>`),
+  upgrade: a => { const u = UPGRADES.find(x => x.id===a); if(!u) return; const t = S.town, lv = t[a]||0; if(lv >= u.max) return; const c = u.cost[lv]; if(S.hero.gold < c) return;
+    S.hero.gold -= c; t[a] = lv+1;
+    if(a==='train') S.hero.points = (S.hero.points||0) + 2;
+    if(a==='temple') S.hero.hp = Math.min(heroStats().maxhp, S.hero.hp + Math.round(heroStats().maxhp*.08));
+    if(a==='smith') S.shop = genShop();
+    toast(`${u.name} upgraded to level ${t[a]}.`); save(); render(); },
   reset: () => { closeSheet(); newGame(); save(); render(); toast('A new adventurer arrives in Emberhold.'); }
 };
 document.addEventListener('click', e => {
