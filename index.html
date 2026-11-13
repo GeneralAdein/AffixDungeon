@@ -557,7 +557,10 @@ svg[shape-rendering]{display:block}
 .hud-bag svg{width:16px;height:16px;color:var(--torch)}
 .hud-bag.full{border-color:var(--bad);color:var(--bad)}
 .worth{display:inline-flex;align-items:center;gap:4px;font-size:20px;color:var(--rare);border:2px solid currentColor;padding:0 5px;flex:none;font-variant-numeric:tabular-nums}
-.cell .cv{position:absolute;left:4px;bottom:0;font-size:14px;color:var(--rare);font-variant-numeric:tabular-nums}
+.cell .cv{position:absolute;left:4px;bottom:1px;display:inline-flex;align-items:center;gap:3px;font-size:14px;line-height:1;color:var(--rare);font-variant-numeric:tabular-nums}
+.cell .cv .coin{width:9px;height:9px}
+.statline{display:flex;flex-wrap:wrap;gap:2px 14px;margin:8px 0 4px;padding:6px 8px;border:2px solid var(--line);background:var(--panel);font-size:18px;color:var(--muted);cursor:pointer}
+.statline b{font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums}
 .cardworth{display:inline-flex;align-items:center;gap:6px;margin:4px 0 2px;font-size:22px;color:var(--rare);border:2px solid currentColor;padding:0 6px}
 .cardworth span:last-child{font-size:15px;color:var(--muted)}
 .bagworth{margin:0 0 8px;color:var(--muted)}
@@ -1767,6 +1770,12 @@ const sheetOpen = () => $('#sheetWrap').classList.contains('open');
 function refreshSheet(){ if(sheetKind==='bag') openSheet(bagSheet(),'bag'); else if(sheetKind==='loot'){ if(R() && R().loot.length) openSheet(lootSheet(),'loot'); else closeSheet(); } }
 
 function statBox(label, val){ return `<div class="stat"><span>${label}</span><b>${val}</b></div>`; }
+/* Compact one-paragraph stat summary for the inventory, so the bag needs less scrolling */
+function heroStatLine(hs){
+  const h = S.hero, parts = [['Health',`${h.hp}/${hs.maxhp}`],['Damage', hs.atk + (hs.magic?'*':'')],['Armor',hs.def],['Speed',hs.spd],['Crit',hs.crit+'%'],['Dodge',hs.dodge+'%']];
+  for(const [k,l,u] of [['block','Block','%'],['lifesteal','Leech','%'],['thorns','Reflect','%'],['regen','Regen','%'],['fire','Fire','+'],['spell','Spell','%'],['gold','Gold find','%'],['xp','Exp','%']]) if(hs[k]) parts.push([l, u==='+' ? '+'+hs[k] : hs[k]+'%']);
+  return `<p class="statline" data-act="stats" role="button" aria-label="Open character stats">${parts.map(([l,v]) => `<span>${l} <b>${v}</b></span>`).join('')}</p>${hs.magic?'<p class="sub">* Your staff hits with spell power and ignores armor.</p>':''}`;
+}
 function heroStatGrid(hs){
   const h = S.hero;
   const rows = [statBox('Health',`${h.hp}/${hs.maxhp}`), statBox('Damage', hs.atk + (hs.magic?'*':'')), statBox('Armor',hs.def), statBox('Speed',hs.spd), statBox('Critical',hs.crit+'%'), statBox('Dodge',hs.dodge+'%')];
@@ -1776,13 +1785,13 @@ function heroStatGrid(hs){
 }
 function bagSheet(){
   const h = S.hero, hs = heroStats();
-  let cells = h.bag.map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv">${sellPrice(it)}</span>${upgradeMark(it)}</button>`).join('');
+  let cells = h.bag.map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv"><span class="coin"></span>${sellPrice(it)}</span>${upgradeMark(it)}</button>`).join('');
   for(let i=h.bag.length;i<bagMax();i++) cells += `<div class="cell empty"></div>`;
   const lootBtn = '';
   return `<div class="grab"></div><h3 class="sheet-title">Inventory</h3>
     <p class="bagworth">Everything in your bag sells for ${priceTag(h.bag.reduce((a,it)=>a+sellPrice(it),0))}</p>
     ${dollHtml()}
-    ${heroStatGrid(hs)}
+    ${heroStatLine(hs)}
     <h3 class="section-h" style="margin-top:4px">Bag <small class="sub">${h.bag.length} of ${bagMax()}</small></h3>
     <p class="sub" style="margin-bottom:6px">Tap an item to compare it with what you’re wearing. ▲ marks a likely upgrade.</p>
     <div class="grid">${cells}</div>
