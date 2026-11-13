@@ -1663,7 +1663,7 @@ function dungeonView(){
   if(r.phase==='loot'){
     const rw = r.reward, n = r.loot.length, full = S.hero.bag.length >= bagMax(), chest = rw.kind==='chest';
     const moveLabel = 'Keep exploring';
-    const lootList = r.loot.map(it => itemRow(it,'loot',`<div class="rbtns">${IBASE[it.base].kind==='potion' ? `<button class="btn sm drink" data-act="drinkLoot" data-arg="${it.uid}" ${potionUseful(it)?'':'disabled'}>Drink</button>` : ''}<button class="btn sm" data-act="take" data-arg="${it.uid}" ${full?'disabled':''}>Take</button></div>`)).join('');
+    const lootList = r.loot.map(it => itemRow(it,'loot',`<div class="rbtns">${IBASE[it.base].kind==='potion' ? `<button class="btn sm drink" data-act="drinkLoot" data-arg="${it.uid}" ${potionUseful(it)?'':'disabled'}>Drink</button>` : ''}<button class="btn sm" data-act="take" data-arg="${it.uid}">Take</button></div>`)).join('');
     return `<div class="dun after">${floorBar()}
       <div class="panel after-main">
         <h2>${chest ? 'Treasure' : 'Victory'}</h2><p class="lead">${chest ? (rw.trap || 'You pry the chest open.') : `${article(rw.name)} ${rw.name} falls.`}</p>
@@ -1672,7 +1672,7 @@ function dungeonView(){
             : `<div class="noloot">${r.tookAll ? 'Nothing left on the ground.' : 'No loot this time.'}</div>`}
       </div>
       <div class="choice">
-        ${n ? `<button class="btn primary" data-act="takeAll" ${full?'disabled':''}>${full?'Bag is full':`Take all (${n})`}</button>
+        ${n ? `<button class="btn primary" data-act="takeAll">Take all (${n})</button>
                <button class="btn" data-act="next">${moveLabel}</button>
                <p class="sub choice-note">${full ? 'Make room in your inventory, or move on and leave it.' : 'Moving on leaves anything you didn’t take.'}</p>`
             : `<button class="btn primary span2" data-act="next">${moveLabel}</button>`}
@@ -1788,7 +1788,7 @@ function bagSheet(){
   const h = S.hero, hs = heroStats();
   let cells = h.bag.map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv"><span class="coin"></span>${sellPrice(it)}</span>${upgradeMark(it)}</button>`).join('');
   for(let i=h.bag.length;i<bagMax();i++) cells += `<div class="cell empty"></div>`;
-  const lootBtn = '';
+  const lootBtn = S.run && S.run.phase==='loot' && S.run.loot.length ? `<button class="btn primary" data-act="closeSheet">Back to loot (${S.run.loot.length})</button>` : '';
   return `<div class="grab"></div><h3 class="sheet-title">Inventory</h3>
     <p class="bagworth">Everything in your bag sells for ${priceTag(h.bag.reduce((a,it)=>a+sellPrice(it),0))}</p>
     ${dollHtml()}
@@ -1862,7 +1862,7 @@ function itemSheet(it, ctx){
   } else if(ctx==='equipped'){
     acts.push(`<button class="btn" data-act="unequip" data-arg="${b.kind}" ${inCombat||full?'disabled':''}>${full?'Bag is full':'Unequip'}</button>`, backBtn);
   } else if(ctx==='loot'){
-    acts.push(`<button class="btn primary" data-act="take" data-arg="${it.uid}" ${full?'disabled':''}>${full?'Bag is full':'Take'}</button>`);
+    acts.push(`<button class="btn primary" data-act="take" data-arg="${it.uid}">${full?'Take (make room)':'Take'}</button>`);
     if(b.kind==='potion') acts.push(`<button class="btn drink" data-act="drinkLoot" data-arg="${it.uid}" ${potionUseful(it)?'':'disabled'}>${potionUseful(it)?'Drink now':'Already at full health'}</button>`);
     if(gear) acts.push(`<button class="btn equipnow" data-act="equip" data-arg="${it.uid}|loot">Equip now</button>`);
     acts.push(backBtn);
@@ -2694,7 +2694,7 @@ function equipItem(arg){
   if(slot==='weapon' && IBASE[it.base].two && h.equip.shield) displaced.push(h.equip.shield);
   if(slot==='shield' && h.equip.weapon && IBASE[h.equip.weapon.base].two) displaced.push(h.equip.weapon);
   const after = h.bag.length - (from==='bag' ? 1 : 0) + displaced.length;
-  if(after > bagMax()){ toast('Make room in your bag first.'); return; }
+  if(after > bagMax()){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; }
   list.splice(f.i, 1);
   for(const d of displaced){ for(const sl of SLOTS) if(h.equip[sl] && h.equip[sl].uid===d.uid) h.equip[sl] = null; }
   h.equip[slot] = it;
@@ -2729,7 +2729,7 @@ function drinkLoot(id){
 }
 function takeLoot(id){
   const r = R(); const f = r && findIn(r.loot, id); if(!f) return;
-  if(S.hero.bag.length >= bagMax()) return toast('Your bag is full. Drop or equip something first.');
+  if(S.hero.bag.length >= bagMax()){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; }
   r.loot.splice(f.i,1); S.hero.bag.push(f.it);
   toast(`Picked up ${itemName(f.it)}.`);
   save(); render();
@@ -2759,7 +2759,7 @@ const ACT = {
   drop: a => { const f = findIn(S.hero.bag, a); if(!f) return; S.hero.bag.splice(f.i,1); toast(`Dropped ${itemName(f.it)}.`); save(); render(); openSheet(bagSheet(),'bag'); },
   take: a => takeLoot(a),
   drinkLoot: a => drinkLoot(a),
-  takeAll: () => { const r = R(); let n = 0; while(r.loot.length && S.hero.bag.length < bagMax()){ S.hero.bag.push(r.loot.shift()); n++; } toast(r.loot.length ? 'Your inventory is full.' : `Took ${n} item${n===1?'':'s'}.`); if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); },
+  takeAll: () => { const r = R(); if(S.hero.bag.length >= bagMax()){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; } let n = 0; while(r.loot.length && S.hero.bag.length < bagMax()){ S.hero.bag.push(r.loot.shift()); n++; } if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); if(r.loot.length){ toast(`Took ${n}. Your bag is full now.`); openSheet(bagSheet(),'bag'); } else toast(`Took ${n} item${n===1?'':'s'}.`); },
   next: () => nextStep(),
   descend: () => { const r = R(); if(moving) return; closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
     const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
