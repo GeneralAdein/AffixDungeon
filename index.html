@@ -577,6 +577,11 @@ svg[shape-rendering]{display:block}
 .now{color:var(--good)}
 .maxed{color:var(--good);border:2px solid var(--good);padding:0 6px;flex:none}
 
+
+/* ===== stacks and the belt ===== */
+.qty{color:var(--rare);font-size:18px}
+.cell .qx{position:absolute;right:4px;top:1px;font-size:14px;color:var(--ink);background:rgba(0,0,0,.35);padding:0 2px;line-height:1.1}
+
 @media (prefers-reduced-motion: reduce){
   .bob,.ghost,.aura,.parts span,.thorn-ring,.fx-frenzied .bob,.fx-ghostly .bob,.sfx-clumsiness .bob{animation:none !important}
   .sfx-speed .ghost{opacity:.15;transform:translateX(-10%)}
@@ -1140,7 +1145,17 @@ const IBASE = {
   silverring:{name:'Silver Ring',kind:'ring',icon:'ring',crit:3,min:1,value:14},
   goldring:{name:'Gold Ring',kind:'ring',icon:'ring',gold:10,min:2,value:18},
   potion:{name:'Healing Potion',kind:'potion',icon:'potion',heal:30,min:1,value:10},
-  flame:{name:'Flame Scroll',kind:'scroll',icon:'scroll',dmg:18,min:1,value:14},
+  flame:{name:'Flame Scroll',kind:'scroll',icon:'scroll',dmg:18,flags:['burn'],min:1,value:14},
+  frostbolt:{name:'Frost Scroll',kind:'scroll',icon:'scroll',dmg:13,slowT:3,min:1,value:14},
+  mending:{name:'Mending Scroll',kind:'scroll',icon:'scroll',healp:35,min:1,value:16},
+  venomscroll:{name:'Venom Scroll',kind:'scroll',icon:'scroll',dmg:6,flags:['venomS'],min:2,value:16},
+  wardscroll:{name:'Ward Scroll',kind:'scroll',icon:'scroll',ward:8,min:2,value:16},
+  hex:{name:'Hex Scroll',kind:'scroll',icon:'scroll',flags:['weakM'],min:2,value:15},
+  lightning:{name:'Lightning Scroll',kind:'scroll',icon:'scroll',dmg:26,min:3,value:22},
+  sundering:{name:'Sundering Scroll',kind:'scroll',icon:'scroll',dmg:8,flags:['sunder'],min:3,value:18},
+  hastescroll:{name:'Haste Scroll',kind:'scroll',icon:'scroll',hasteS:40,min:3,value:20},
+  leechscroll:{name:'Leech Scroll',kind:'scroll',icon:'scroll',dmg:15,leech:50,min:4,value:24},
+  holyscroll:{name:'Holy Scroll',kind:'scroll',icon:'scroll',dmg:20,flags:['holy'],min:4,value:24},
   escape:{name:'Escape Scroll',kind:'scroll',icon:'scroll',escape:true,min:1,value:12,noAffix:true}
 };
 /* Item affixes. slots: a slot name, 'armor' (shield/head/body/hands/feet), 'jewel' (neck/ring), 'gear' (any), 'potion', 'scroll'.
@@ -1187,8 +1202,16 @@ const IPRE = {
   minor:{name:'Minor',slots:['potion'],w:8,min:1,mul:{heal:.6},neg:true,vm:.6},
   greater:{name:'Greater',slots:['potion'],w:6,min:3,mul:{heal:1.6},vm:1.6},
   superior:{name:'Superior',slots:['potion'],w:3,min:6,mul:{heal:2.4},vm:2.4},
-  empowered:{name:'Empowered',slots:['scroll'],w:6,min:2,mul:{dmg:1.5},vm:1.5},
-  faded:{name:'Faded',slots:['scroll'],w:6,min:1,mul:{dmg:.7},neg:true,vm:.6}
+  empowered:{name:'Empowered',slots:['scroll'],w:7,min:2,mul:{dmg:1.5,healp:1.5,ward:1.5,hasteS:1.5},vm:1.5},
+  faded:{name:'Faded',slots:['scroll'],w:7,min:1,mul:{dmg:.7,healp:.7,ward:.7,hasteS:.7},neg:true,vm:.6},
+  smudged:{name:'Smudged',slots:['scroll'],w:6,min:1,add:{fizzle:25},neg:true,vm:.5},
+  quickened:{name:'Quickened',slots:['scroll'],w:4,min:2,flag:['quick'],vm:1.8},
+  echoing:{name:'Echoing',slots:['scroll'],w:4,min:3,flag:['echo'],vm:1.7},
+  lingering:{name:'Lingering',slots:['scroll'],w:6,min:1,add:{linger:2},vm:1.3},
+  volatile:{name:'Volatile',slots:['scroll'],w:5,min:2,mul:{dmg:1.6,healp:1.6,ward:1.6,hasteS:1.6},add:{backfire:20},vm:1.1},
+  blessed2:{name:'Blessed',slots:['scroll'],w:5,min:2,add:{healp:10},vm:1.4},
+  cursedscroll:{name:'Cursed',slots:['scroll'],w:4,min:2,mul:{dmg:1.4,healp:1.4,ward:1.4,hasteS:1.4},add:{backlash:10},vm:1},
+  arcanescroll:{name:'Ancient',slots:['scroll'],w:2,min:6,mul:{dmg:1.8,healp:1.8,ward:1.8,hasteS:1.8},vm:2.2}
 };
 const ISUF = {
   speed:{name:'of Speed',slots:['weapon','feet','hands','ring'],w:7,min:1,add:{spd:12},vm:1.3},
@@ -1226,24 +1249,35 @@ const ISUF = {
   fortitude:{name:'of Fortitude',slots:['potion'],w:6,min:1,add:{fort:4},scale:true,vm:1.3},
   haste:{name:'of Haste',slots:['potion'],w:6,min:2,add:{haste:30},vm:1.3},
   cleansing:{name:'of Cleansing',slots:['potion'],w:6,min:1,flag:['cleanse'],vm:1.2},
-  frost:{name:'of Frost',slots:['scroll'],w:6,min:2,flag:['frost'],vm:1.3}
+  frost:{name:'of Frost',slots:['scroll'],notBases:['frostbolt'],w:6,min:1,add:{slowT:3},vm:1.3},
+  flames:{name:'of Flames',slots:['scroll'],notBases:['flame'],w:6,min:1,flag:['burn'],vm:1.3},
+  venomous:{name:'of Venom',slots:['scroll'],notBases:['venomscroll'],w:5,min:2,flag:['venomS'],vm:1.3},
+  leechingS:{name:'of Leeching',slots:['scroll'],notBases:['leechscroll'],w:5,min:2,add:{leech:30},vm:1.4},
+  shielding:{name:'of Shielding',slots:['scroll'],notBases:['wardscroll'],w:5,min:1,add:{ward:5},scale:true,vm:1.3},
+  quickness:{name:'of Haste',slots:['scroll'],notBases:['hastescroll'],w:5,min:2,add:{hasteS:25},vm:1.3},
+  weakness:{name:'of Weakness',slots:['scroll'],notBases:['hex'],w:5,min:2,flag:['weakM'],vm:1.3},
+  blinding:{name:'of Blinding',slots:['scroll'],w:4,min:3,flag:['blindM'],vm:1.4},
+  sundering:{name:'of Sundering',slots:['scroll'],notBases:['sundering'],w:4,min:3,flag:['sunder'],vm:1.4},
+  fizzling:{name:'of Fizzling',slots:['scroll'],w:5,min:1,add:{fizzle:30},neg:true,vm:.5},
+  backlash:{name:'of Backlash',slots:['scroll'],w:4,min:1,add:{backlash:10},neg:true,vm:.5}
 };
 for(const [k,v] of Object.entries(IPRE)) v.id=k;
 for(const [k,v] of Object.entries(ISUF)) v.id=k;
 function fits(a, baseId){
   const b = IBASE[baseId], k = b.kind;
   if(b.noAffix) return false;
+  if(a.notBases && a.notBases.includes(baseId)) return false;
   if(a.bases && a.bases.includes(baseId)) return true;
   return a.slots.some(s => s===k || (s==='armor' && ARMOR.has(k)) || (s==='jewel' && JEWEL.has(k)) || (s==='gear' && GEAR.has(k)));
 }
 
 const STAT_KEYS = ['maxhp','atk','def','spd','crit','dodge','block','lifesteal','thorns','regen','fire','spell','gold','xp'];
 const STAT_ROWS = [['str','Strength'],['dex','Dexterity'],['vit','Vitality'],['int','Intelligence'],['lck','Luck'],['maxhp','Max health'],['atk','Damage'],['def','Armor'],['spd','Speed'],['crit','Critical'],['dodge','Dodge'],['block','Block'],['lifesteal','Life steal'],['thorns','Reflect'],['regen','Regen'],['fire','Fire damage'],['spell','Spell power'],['gold','Gold found'],['xp','Experience']];
-const PCT = new Set(['dodge','crit','lifesteal','thorns','regen','block','spell','gold','xp','acc']);
+const PCT = new Set(['dodge','crit','lifesteal','thorns','regen','block','spell','gold','xp','acc','healp','leech','fizzle','backlash','backfire']);
 const MLAB = {hp:'health',atk:'damage',def:'armor',spd:'speed',xp:'experience',gold:'gold dropped',dodge:'dodge',crit:'critical chance',lifesteal:'life steal',thorns:'of damage reflected',regen:'health regained each turn',acc:'accuracy'};
 const MFLAG = {venom:'Its attacks poison you',chill:'Its attacks slow you',corrode:'Its attacks corrode your armor',wounded:'Starts the fight at 60% health',stench:'Weakens your attacks for the first 3 turns',rage:'Below half health it deals 35% more damage',flash:'Its hits can blind you',burn:'Its attacks set you burning'};
-const ILAB = {str:'Strength',dex:'Dexterity',vit:'Vitality',int:'Intelligence',lck:'Luck',atk:'damage',def:'armor',spd:'speed',crit:'critical chance',dodge:'dodge',block:'block chance',lifesteal:'life steal',thorns:'of damage reflected',regen:'health regained each turn',maxhp:'max health',fire:'fire damage per hit',spell:'spell power',gold:'gold found',xp:'experience gained',heal:'healing',dmg:'spell damage',fort:'armor for 3 turns',haste:'speed for 3 turns'};
-const IFLAG = {venom:'Hits poison the target for 3 turns',cleanse:'Cures poison, slow, curse and corrosion',frost:'Slows the target by 40% for 3 turns'};
+const ILAB = {str:'Strength',dex:'Dexterity',vit:'Vitality',int:'Intelligence',lck:'Luck',atk:'damage',def:'armor',spd:'speed',crit:'critical chance',dodge:'dodge',block:'block chance',lifesteal:'life steal',thorns:'of damage reflected',regen:'health regained each turn',maxhp:'max health',fire:'fire damage per hit',spell:'spell power',gold:'gold found',xp:'experience gained',heal:'healing',dmg:'spell damage',fort:'armor for 3 turns',haste:'speed for 3 turns',healp:'of your health healed',ward:'armor for 4 turns',hasteS:'speed for 3 turns',slowT:'turns of slow on the target',leech:'of the damage healed back',linger:'extra turns on every effect',fizzle:'chance to fizzle',backlash:'of your max health lost when read',backfire:'chance to hit you instead'};
+const IFLAG = {venom:'Hits poison the target for 3 turns',cleanse:'Cures poison, slow, curse and corrosion',frost:'Slows the target by 40% for 3 turns',burn:'Sets the target burning',venomS:'Poisons the target for 5 turns',weakM:'Weakens the target’s attacks by 30%',blindM:'Blinds the target: its attacks often miss',sunder:'Halves the target’s armor',quick:'Reading it doesn’t use your turn',echo:'Casts a second time at 60%',holy:'Double damage to undead'};
 
 /* ============ state ============ */
 let S = null;
@@ -1256,6 +1290,36 @@ function mk(base, ilvl=1, pre=null, suf=null){
   return it;
 }
 function emptyEquip(){ const e = {}; for(const s of SLOTS) e[s] = null; return e; }
+const STACK_MAX = 10;
+const isConsumable = it => ['potion','scroll'].includes(IBASE[it.base].kind);
+const stackKey = it => [it.base, it.ilvl, it.pre||'', it.suf||''].join('|');
+function beltLevel(){ return (S && S.town && S.town.belt) || 0; }
+function beltCap(){ return beltLevel() >= 2 ? 30 : beltLevel() >= 1 ? 15 : 0; }
+function beltTakes(it){ const k = IBASE[it.base].kind, l = beltLevel(); return (k==='potion' && l >= 1) || (k==='scroll' && l >= 2); }
+function beltCount(){ return (S.hero.belt || []).reduce((a,x) => a + (x.qty||1), 0); }
+/* Is there room for this item? Matching potions and scrolls stack, and the belt holds them without using bag slots. */
+function roomFor(it){
+  const h = S.hero;
+  if(isConsumable(it)){
+    if(beltTakes(it) && beltCount() + (it.qty||1) <= beltCap()) return true;
+    if(h.bag.some(x => isConsumable(x) && stackKey(x)===stackKey(it) && (x.qty||1) + (it.qty||1) <= STACK_MAX)) return true;
+  }
+  return h.bag.length < bagMax();
+}
+function addToBag(it){
+  const h = S.hero;
+  if(isConsumable(it)){
+    it.qty = it.qty || 1;
+    if(beltTakes(it) && beltCount() + it.qty <= beltCap()){
+      h.belt = h.belt || [];
+      const s = h.belt.find(x => stackKey(x)===stackKey(it)); if(s) s.qty = (s.qty||1) + it.qty; else h.belt.push(it);
+      return;
+    }
+    const s = h.bag.find(x => isConsumable(x) && stackKey(x)===stackKey(it) && (x.qty||1) + it.qty <= STACK_MAX);
+    if(s){ s.qty = (s.qty||1) + it.qty; return; }
+  }
+  h.bag.push(it);
+}
 function bagMax(){ return BAG_BASE + 4*((S && S.town && S.town.bag) || 0); }
 function newGame(){
   const equip = emptyEquip(); equip.weapon = mk('shortsword'); equip.body = mk('padded');
@@ -1298,6 +1362,9 @@ function baseStats(it){
   if(b.dmg) s.dmg = b.dmg*(1+.25*(L-1));
   if(b.escape) s.escape = true;
   if(b.magic) s.magic = true;
+  for(const k of ['slowT','healp','hasteS','leech']) if(b[k]) s[k] = b[k];
+  if(b.ward) s.ward = b.ward*(1+.2*(L-1));
+  if(b.flags) for(const f of b.flags) s[f] = true;
   return s;
 }
 function itemStats(it){
@@ -1361,7 +1428,7 @@ function heroAtk(){ return heroStats().atk * (pbuffs().weak ? .7 : 1); }
 function heroDef(){ const pb = pbuffs(); return heroStats().def * (pb.corrode ? .5 : 1) + (pb.fort ? pb.fort.v : 0); }
 function heroSpd(){ const pb = pbuffs(), wet = S.run && S.run.floor && S.run.floor.pre==='flooded' ? .85 : 1; return Math.max(25, (heroStats().spd + (pb.haste ? pb.haste.v : 0)) * (pb.slow ? .6 : 1) * wet); }
 function monSpd(){ const r = R(); return Math.max(25, monStats(r.mon).spd * (r.mb.slow ? .6 : 1)); }
-function monDef(){ const r = R(); return monStats(r.mon).def * (r.mb.harden ? 1.6 : 1); }
+function monDef(){ const r = R(); return monStats(r.mon).def * (r.mb.harden ? 1.6 : 1) * (r.mb.sunder ? .5 : 1); }
 function calcDmg(atk, def){ return Math.max(1, Math.round(atk*rand(.85,1.15) * 30/(30+Math.max(0,def)))); }
 const xpNeed = l => Math.round(25*Math.pow(l,1.55));
 
@@ -1385,11 +1452,19 @@ function itemShort(it){
   if(k==='shield') return `${s.def||0} armor, ${s.block||0}% block`;
   if(ARMOR.has(k) && s.def) return `${s.def} armor`;
   if(k==='potion') return `Heals ${s.heal}`;
-  if(k==='scroll') return s.escape ? 'Escape a fight' : `${s.dmg} spell damage`;
+  if(k==='scroll') return scrollSummary(s);
   for(const key of [...STAT_KEYS, ...ATTR_KEYS]) if(s[key]) return statText(key, s[key]);
   return 'No bonuses';
 }
-function quickLabel(it){ const s = itemStats(it); if(IBASE[it.base].kind==='potion') return `Heal ${s.heal}`; if(s.escape) return 'Escape'; return `Flame ${s.dmg}`; }
+function scrollSummary(s){
+  if(s.escape) return 'Escape a fight';
+  const p = [];
+  if(s.dmg) p.push(`${s.dmg} damage`); if(s.healp) p.push(`heals ${s.healp}%`); if(s.ward) p.push(`+${s.ward} armor`); if(s.hasteS) p.push(`+${s.hasteS} speed`);
+  if(s.burn) p.push('burns'); if(s.venomS) p.push('poisons'); if(s.slowT) p.push('slows'); if(s.weakM) p.push('weakens'); if(s.blindM) p.push('blinds'); if(s.sunder) p.push('sunders'); if(s.leech) p.push('drains'); if(s.holy) p.push('holy');
+  return p.length ? cap(p.join(', ')) : 'Arcane';
+}
+const SCROLL_SHORT = {flame:'Flame',frostbolt:'Frost',mending:'Mend',venomscroll:'Venom',wardscroll:'Ward',hex:'Hex',lightning:'Bolt',sundering:'Sunder',hastescroll:'Haste',leechscroll:'Leech',holyscroll:'Holy',escape:'Escape'};
+function quickLabel(it){ const s = itemStats(it); const q = it.qty > 1 ? ` x${it.qty}` : ''; if(IBASE[it.base].kind==='potion') return `Heal ${s.heal}${q}`; return `${SCROLL_SHORT[it.base]||'Scroll'}${q}`; }
 function itemValue(it){
   const b = IBASE[it.base];
   let v = b.value*(1+.3*(it.ilvl-1)) * ({normal:1,magic:1.6,rare:2.4}[it.rarity]);
@@ -1449,7 +1524,7 @@ function genShop(){
   for(let i=0;i<8;i++) items.push(genItem(L + sm + pick([-1,0,0,1]), pick(kinds)));
   return {items};
 }
-const STAPLES = ['potion','flame','escape'];
+const STAPLES = ['potion','mending','flame','frostbolt','escape'];
 function stapleLvl(){ return Math.max(1, Math.ceil(shopLvl()/2)); }
 
 /* ============ describing affixes ============ */
@@ -1533,7 +1608,7 @@ function render(){
 function itemRow(it, ctx, right=''){
   return `<div class="row r-${it.rarity}"><button class="rowmain" data-act="item" data-arg="${it.uid}|${ctx}">
     <span class="ico">${ICON[IBASE[it.base].icon]}</span>
-    <span><span class="nm">${itemNameHtml(it)}</span><br><span class="sub">Lv ${it.ilvl} ${kindName(it)}, ${itemShort(it)}</span></span></button>${['shopBuy','merchant','shopSell'].includes(ctx) ? '' : worthTag(it)}${right}</div>`;
+    <span><span class="nm">${itemNameHtml(it)}${it.qty > 1 ? ` <span class="qty">x${it.qty}</span>` : ''}</span><br><span class="sub">Lv ${it.ilvl} ${kindName(it)}, ${itemShort(it)}</span></span></button>${['shopBuy','merchant','shopSell'].includes(ctx) ? '' : worthTag(it)}${right}</div>`;
 }
 function worthTag(it){ return `<span class="worth" title="Sells for ${sellPrice(it)} gold"><span class="coin"></span>${sellPrice(it)}</span>`; }
 function priceTag(n){ return `<span class="price"><span class="coin"></span>${n}</span>`; }
@@ -1587,7 +1662,7 @@ function shopView(){
   } else {
     const gear = h.bag.filter(isGear), total = gear.reduce((a,it)=>a+sellPrice(it),0);
     body = h.bag.length ? `${gear.length?`<div class="stack" style="margin-top:0;margin-bottom:10px"><button class="btn primary" data-act="sellGear">Sell all ${gear.length} gear for ${priceTag(total)}</button></div>`:''}
-      <div class="rows">${h.bag.map(it => itemRow(it, 'shopSell', `<button class="btn sm" data-act="sell" data-arg="${it.uid}">${priceTag(sellPrice(it))}</button>`)).join('')}</div>
+      <div class="rows">${[...h.bag, ...(h.belt||[])].map(it => itemRow(it, 'shopSell', `<button class="btn sm" data-act="sell" data-arg="${it.uid}">${priceTag(sellPrice(it))}</button>`)).join('')}</div>
       <p class="sub" style="margin-top:8px">Selling gear keeps your potions and scrolls.</p>` : `<p class="empty-note">Your bag is empty. Pick up loot in the dungeon and sell it here.</p>`;
   }
   return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
@@ -1603,6 +1678,7 @@ const UPGRADES = [
   {id:'apoth', name:'Apothecary', desc:'Start every run with a free Healing Potion per level.', max:3, cost:[1200,4000,12000], now:l => `${l} free potion${l===1?'':'s'} each run`},
   {id:'smith', name:'Master Smith', desc:'Shop gear is one item level higher per level.', max:3, cost:[2500,8000,24000], now:l => `Shop gear +${l} levels`},
   {id:'bank', name:'Bank Vault', desc:'Lose 10% less gold when you die, per level.', max:4, cost:[2000,6000,15000,40000], now:l => `Death costs ${50-l*10}% of your gold`},
+  {id:'belt', name:'Potion Belt', desc:'Potions go on a belt instead of your bag. Level 2 holds scrolls too.', max:2, cost:[7500,20000], now:l => l >= 2 ? 'Belt holds 30 potions and scrolls' : 'Belt holds 15 potions'},
   {id:'map', name:'Cartographer', desc:'The stairs show on every floor’s map from the start.', max:1, cost:[8000], now:l => l ? 'Stairs always marked' : ''}
 ];
 function guildView(){
@@ -1728,6 +1804,10 @@ function statusChips(obj, isHero){
     if(obj.poison) out.push([`Poisoned ${obj.poison.t}`,'good']);
     if(obj.slow) out.push([`Slowed ${obj.slow.t}`,'good']);
     if(obj.camo) out.push([`Hidden ${obj.camo.t}`,'bad']);
+    if(obj.burn) out.push([`Burning ${obj.burn.t}`,'good']);
+    if(obj.weak) out.push([`Weakened ${obj.weak.t}`,'good']);
+    if(obj.blind) out.push([`Blinded ${obj.blind.t}`,'good']);
+    if(obj.sunder) out.push([`Sundered ${obj.sunder.t}`,'good']);
     if(obj.rally) out.push([`Rallied ${obj.rally.t}`,'bad']);
   }
   return out.map(([t,c]) => `<span class="chip ${c}">${t}</span>`).join('');
@@ -1757,7 +1837,7 @@ function updateCombatUI(){
   $('#log').innerHTML = r.log.map(l => `<li>${l}</li>`).join('');
   const ok = canAct();
   for(const id of ['bAttack','bDefend','bFlee']) $('#'+id).disabled = !ok;
-  const cons = S.hero.bag.filter(it => ['potion','scroll'].includes(IBASE[it.base].kind)).slice(0,4);
+  const cons = [...(S.hero.belt||[]), ...S.hero.bag.filter(isConsumable)].slice(0,4);
   let q = cons.map(it => `<button class="qs r-${it.rarity}" data-act="use" data-arg="${it.uid}" ${ok?'':'disabled'} aria-label="Use ${itemName(it)}">${ICON[IBASE[it.base].icon]}<span>${quickLabel(it)}</span></button>`).join('');
   for(let i=cons.length;i<4;i++) q += `<button class="qs empty" disabled>Empty</button>`;
   $('#quick').innerHTML = q;
@@ -1786,16 +1866,18 @@ function heroStatGrid(hs){
 }
 function bagSheet(){
   const h = S.hero, hs = heroStats();
-  let cells = h.bag.map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv"><span class="coin"></span>${sellPrice(it)}</span>${upgradeMark(it)}</button>`).join('');
+  let cells = h.bag.map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv"><span class="coin"></span>${sellPrice(it)}</span>${it.qty > 1 ? `<span class="qx">x${it.qty}</span>` : ''}${upgradeMark(it)}</button>`).join('');
   for(let i=h.bag.length;i<bagMax();i++) cells += `<div class="cell empty"></div>`;
   const lootBtn = S.run && S.run.phase==='loot' && S.run.loot.length ? `<button class="btn primary" data-act="closeSheet">Back to loot (${S.run.loot.length})</button>` : '';
   return `<div class="grab"></div><h3 class="sheet-title">Inventory</h3>
-    <p class="bagworth">Everything in your bag sells for ${priceTag(h.bag.reduce((a,it)=>a+sellPrice(it),0))}</p>
+    <p class="bagworth">Everything in your bag sells for ${priceTag([...h.bag, ...(h.belt||[])].reduce((a,it)=>a+sellPrice(it)*(it.qty||1),0))}</p>
     ${dollHtml()}
     ${heroStatLine(hs)}
     <h3 class="section-h" style="margin-top:4px">Bag <small class="sub">${h.bag.length} of ${bagMax()}</small></h3>
     <p class="sub" style="margin-bottom:6px">Tap an item to compare it with what you’re wearing. ▲ marks a likely upgrade.</p>
     <div class="grid">${cells}</div>
+    ${beltLevel() ? `<h3 class="section-h">Potion Belt <small class="sub">${beltCount()} of ${beltCap()}${beltLevel()>=2 ? ', potions and scrolls' : ', potions'}</small></h3>
+      <div class="grid">${(h.belt||[]).map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv"><span class="coin"></span>${sellPrice(it)}</span><span class="qx">x${it.qty||1}</span></button>`).join('') || '<p class="empty-note" style="grid-column:1/-1">Potions you pick up go here automatically.</p>'}</div>` : ''}
     <div class="sheet-actions">${lootBtn}<button class="btn" data-act="stats">Character stats${S.hero.points?` (+${S.hero.points})`:''}</button><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
 function lootSheet(){
@@ -1823,7 +1905,15 @@ function itemCard(it, title){
   const b = IBASE[it.base], s = baseStats(it), fin = itemStats(it);
   const base = [];
   const order = [['atk','Damage'],['def','Armor'],['block','Block'],['spd','Speed'],['crit','Critical'],['dodge','Dodge'],['spell','Spell power'],['maxhp','Max health'],['gold','Gold found'],['regen','Regen'],['heal','Heals'],['dmg','Damage']];
-  for(const [k,l] of order) if(fin[k] !== undefined && (s[k] !== undefined)) base.push(`<li>${l} ${k==='spd'?sgn(fin[k]):fin[k]}${PCT.has(k)?'%':''}</li>`);
+  if(b.kind==='scroll'){
+    if(fin.dmg) base.push(`<li>Damage ${fin.dmg}, ignores armor</li>`);
+    if(s.healp) base.push(`<li>Heals ${fin.healp}% of your health</li>`);
+    if(s.ward) base.push(`<li>+${fin.ward} armor for 4 turns</li>`);
+    if(s.hasteS) base.push(`<li>+${fin.hasteS} speed for 3 turns</li>`);
+    if(s.slowT) base.push(`<li>Slows the target ${fin.slowT} turns</li>`);
+    if(s.leech) base.push(`<li>Heals you ${fin.leech}% of the damage</li>`);
+    for(const f of ['burn','venomS','weakM','sunder','holy']) if(s[f]) base.push(`<li>${IFLAG[f]}</li>`);
+  } else for(const [k,l] of order) if(fin[k] !== undefined && (s[k] !== undefined)) base.push(`<li>${l} ${k==='spd'?sgn(fin[k]):fin[k]}${PCT.has(k)?'%':''}</li>`);
   if(fin.escape) base.push('<li>Escape any fight</li>');
   if(fin.magic) base.push('<li class="up">Ignores armor</li>');
   if(b.two) base.push('<li>Uses both hands</li>');
@@ -1857,7 +1947,7 @@ function itemSheet(it, ctx){
   if(ctx==='bag'){
     if(gear) acts.push(`<button class="btn primary" data-act="equip" data-arg="${it.uid}|bag" ${inCombat?'disabled':''}>${inCombat?'Not mid-fight':'Equip'}</button>`);
     if(b.kind==='potion') acts.push(`<button class="btn primary" data-act="use" data-arg="${it.uid}" ${inCombat&&!canAct()?'disabled':''}>Drink</button>`);
-    if(b.kind==='scroll') acts.push(`<button class="btn primary" data-act="use" data-arg="${it.uid}" ${!inCombat||!canAct()?'disabled':''}>${inCombat?'Read':'Read in a fight'}</button>`);
+    if(b.kind==='scroll'){ const ss = itemStats(it), anywhere = ss.healp && !ss.dmg; acts.push(`<button class="btn primary" data-act="use" data-arg="${it.uid}" ${(inCombat ? !canAct() : !anywhere) ? 'disabled' : ''}>${inCombat || anywhere ? 'Read' : 'Read in a fight'}</button>`); }
     acts.push(`<button class="btn" data-act="drop" data-arg="${it.uid}">Drop</button>`, backBtn);
   } else if(ctx==='equipped'){
     acts.push(`<button class="btn" data-act="unequip" data-arg="${b.kind}" ${inCombat||full?'disabled':''}>${full?'Bag is full':'Unequip'}</button>`, backBtn);
@@ -1886,7 +1976,7 @@ function itemSheet(it, ctx){
     const cur = h.equip[b.kind];
     body = `<div class="cmpgrid">${itemCard(it, title)}${itemCard(cur, 'Equipped')}</div>${swapDelta(it)}`;
   } else {
-    const note = b.kind==='scroll' ? (itemStats(it).escape ? 'Read during a fight to escape instantly.' : 'Read during a fight. Ignores armor, boosted by spell power.') : b.kind==='potion' ? 'Drinking takes your turn in a fight.' : '';
+    const note = b.kind==='scroll' ? (itemStats(it).escape ? 'Read during a fight to escape instantly.' : (itemStats(it).healp && !itemStats(it).dmg) ? 'Can be read anytime. Spell power boosts scroll damage.' : 'Read during a fight. Spell power boosts its damage.') : b.kind==='potion' ? 'Drinking takes your turn in a fight.' : '';
     body = `<div class="cmpgrid one">${itemCard(it, title)}</div>${note?`<p class="sub" style="margin-top:6px">${note}</p>`:''}`;
   }
   return `<div class="grab"></div>${body}<div class="sheet-actions">${acts.join('')}</div>`;
@@ -2318,7 +2408,7 @@ function pray(){
   const roll = Math.random();
   if(roll < .45){ h.hp = hs.maxhp; r.msg = 'Warm light washes over you. Health fully restored.'; }
   else if(roll < .7){ const xp = 12*r.depth; gainXp(xp); r.msg = `Visions of the deep fill your mind. You gain ${xp} experience.`; }
-  else if(roll < .85){ const it = genItem(r.depth+1); if(h.bag.length < bagMax()){ h.bag.push(it); r.msg = `An offering appears on the altar: ${itemName(it)}.`; } else r.msg = 'An offering appears, but your bag is full.'; }
+  else if(roll < .85){ const it = genItem(r.depth+1); if(roomFor(it)){ addToBag(it); r.msg = `An offering appears on the altar: ${itemName(it)}.`; } else r.msg = 'An offering appears, but your bag is full.'; }
   else { const d = Math.round(hs.maxhp*.1); h.hp = Math.max(1, h.hp - d); r.msg = `The shrine is angry. Cold fire burns you for ${d}.`; ouch(); }
   save(); updateHud(); updateExplore();
 }
@@ -2361,7 +2451,7 @@ function enterDungeon(){
   newFloor(1);
   S.hero.deepest = Math.max(S.hero.deepest, 1);
   const ap = (S.town && S.town.apoth) || 0; let gave = 0;
-  for(let i=0; i<ap; i++) if(S.hero.bag.length < bagMax()){ S.hero.bag.push(mk('potion', stapleLvl())); gave++; }
+  for(let i=0; i<ap; i++){ const pot = mk('potion', stapleLvl()); if(roomFor(pot)){ addToBag(pot); gave++; } }
   if(gave) setTimeout(() => toast(`The apothecary slips you ${gave} Healing Potion${gave===1?'':'s'}.`), 1600);
   save(); render(); $('#view').scrollTop = 0;
   toast(`Floor 1: ${floorName(S.run.floor, 1)}`);
@@ -2458,9 +2548,10 @@ function playerFlee(){
 function monAttack(mult=1, ignoreArmor=false){
   const r = R(), m = r.mon, ms = monStats(m), hs = heroStats();
   pulse($('#monWrap'),'lunge');
+  if(r.mb.blind && Math.random() < .35){ log(`${cap(short(m))} swings blindly and misses.`); floatNum('Miss','hero','miss'); return 0; }
   if(Math.random()*100 < hs.dodge - ms.acc){ log(`You dodge ${short(m)}.`); floatNum('Dodged','hero','miss'); return 0; }
   if(ms.execute && S.hero.hp < hs.maxhp*.3){ mult *= 2; log(`${cap(short(m))} sees you falter.`); }
-  let dmg = calcDmg(ms.atk*mult*(r.mb.rally?1.3:1), (ignoreArmor||ms.magichit) ? 0 : heroDef()*(ms.pierce?.5:1));
+  let dmg = calcDmg(ms.atk*mult*(r.mb.rally?1.3:1)*(r.mb.weak?.7:1), (ignoreArmor||ms.magichit) ? 0 : heroDef()*(ms.pierce?.5:1));
   const crit = Math.random()*100 < ms.crit; if(crit) dmg = Math.round(dmg*1.5);
   if(r.pb.defend) dmg = Math.max(1, Math.round(dmg*.5));
   const blocked = Math.random()*100 < hs.block;
@@ -2568,6 +2659,7 @@ function useAbility(id){
 function monsterTurn(){
   const r = R(), m = r.mon, ms = monStats(m), mb = r.mb;
   if(ms.regen && m.hp < ms.hp){ const v = Math.max(1, Math.round(ms.hp*ms.regen/100)); m.hp = Math.min(ms.hp, m.hp+v); floatNum('+'+v,'mon','heal'); }
+  if(mb.burn){ m.hp -= mb.burn.d; floatNum(mb.burn.d,'mon','crit'); log(`Flames lick at ${short(m)} for ${mb.burn.d}.`); if(--mb.burn.t <= 0) delete mb.burn; }
   if(mb.poison){ m.hp -= mb.poison.d; floatNum(mb.poison.d,'mon','poison'); log(`Poison eats at ${short(m)} for ${mb.poison.d}.`); if(--mb.poison.t <= 0) delete mb.poison; }
   if(m.hp <= 0) return victory();
   let used = false;
@@ -2579,7 +2671,7 @@ function monsterTurn(){
     if(ms.multi){ monAttack(.5); if(S.hero.hp>0 && m.hp>0) monAttack(.5); if(S.hero.hp>0 && m.hp>0) monAttack(.5); }
     else monAttack(1);
   }
-  for(const k of ['harden','slow','camo','rally']) if(mb[k] && --mb[k].t <= 0) delete mb[k];
+  for(const k of ['harden','slow','camo','rally','weak','blind','sunder']) if(mb[k] && --mb[k].t <= 0) delete mb[k];
   if(S.hero.hp <= 0) return onDeath();
   if(m.hp <= 0) return victory();
 }
@@ -2626,7 +2718,7 @@ function onDeath(){
   r.phase = 'dead'; S.hero.hp = 0; updateHud();
   r.killer = monName(r.mon);
   r.lostItems = S.hero.bag.length; r.lostGold = Math.floor(S.hero.gold*(.5 - .1*((S.town && S.town.bank) || 0)));
-  S.hero.bag = []; S.hero.gold -= r.lostGold;
+  r.lostItems += beltCount(); S.hero.bag = []; S.hero.belt = []; S.hero.gold -= r.lostGold;
   save();
   busy = true;
   setTimeout(()=>{ busy = false; closeSheet(); render(); }, window.__fast ? 0 : 700);
@@ -2650,17 +2742,18 @@ function findItem(id){
   const h = S.hero;
   for(const sl of SLOTS) if(h.equip[sl] && h.equip[sl].uid===id) return h.equip[sl];
   const mer = (merchantRoom() || {}).items || [];
-  for(const list of [h.bag, S.stash, S.shop.items, S.run ? S.run.loot : [], mer]){ const f = findIn(list, id); if(f) return f.it; }
+  for(const list of [h.bag, h.belt || [], S.stash, S.shop.items, S.run ? S.run.loot : [], mer]){ const f = findIn(list, id); if(f) return f.it; }
   return null;
 }
 function useItem(id){
-  const h = S.hero, f = findIn(h.bag, id); if(!f) return;
+  const h = S.hero, src = findIn(h.bag, id) ? h.bag : (h.belt || []), f = findIn(src, id); if(!f) return;
   const it = f.it, b = IBASE[it.base], s = itemStats(it);
   const inCombat = !!(S.run && S.run.phase==='combat');
   if(inCombat && !canAct()) return;
-  if(b.kind==='scroll' && !inCombat){ toast('Scrolls can only be read during a fight.'); return; }
+  if(b.kind==='scroll' && !inCombat && !(s.healp && !s.dmg)){ toast('Only healing scrolls can be read outside a fight.'); return; }
   if(!['potion','scroll'].includes(b.kind)) return;
-  h.bag.splice(f.i, 1); closeSheet();
+  if((it.qty||1) > 1) it.qty--; else src.splice(f.i, 1);
+  closeSheet();
   const hs = heroStats();
   if(b.kind==='potion'){
     const amt = Math.max(0, Math.min(s.heal, hs.maxhp - h.hp)); h.hp += amt;
@@ -2675,14 +2768,50 @@ function useItem(id){
     if(!inCombat){ toast(msg); save(); render(); return; }
     log(msg);
   } else {
-    const r = R(), m = r.mon;
+    const r = R();
     if(s.escape){ toast('You read the Escape Scroll and slip away.'); r.fled = true; nextStep(); return; }
-    let dmg = absorb(Math.round(s.dmg*(1+hs.spell/100)*(monStats(m).hide||1))); m.hp -= dmg;
-    if(dmg>0){ floatNum(dmg,'mon','crit'); pulse($('#monWrap'),'hit'); }
-    if(s.frost) r.mb.slow = {t:3};
-    log(`Flames engulf ${short(m)} for ${dmg}.${s.frost?' It’s slowed.':''}`);
+    readScroll(it, s, inCombat);
+    if(!inCombat){ save(); render(); return; }
+    if(s.quick){ if(S.hero.hp <= 0) return onDeath(); if(r.mon.hp <= 0) return victory(); updateCombatUI(); save(); return; }
   }
   endPlayerAction();
+}
+/* Every scroll is a base spell plus whatever its prefix and suffix add. */
+function readScroll(it, s, inCombat){
+  const r = R(), m = inCombat ? r.mon : null, h = S.hero, hs = heroStats(), L = s.linger || 0, name = itemName(it);
+  const out = [];
+  if(s.backlash){ const d = Math.max(1, Math.round(hs.maxhp*s.backlash/100)); h.hp = Math.max(1, h.hp - d); floatNum(MINUS+d,'hero'); out.push(`It takes ${d} of your health`); }
+  if(s.fizzle && Math.random()*100 < s.fizzle){ log(`The ${name} fizzles into ash.`); if(!inCombat) toast(`The ${name} fizzles into ash.`); return; }
+  let total = 0;
+  for(let rep=0; rep < (s.echo ? 2 : 1); rep++){
+    const mult = rep ? .6 : 1;
+    const backfire = s.backfire && Math.random()*100 < s.backfire;
+    if(s.dmg && m){
+      let d = Math.round(s.dmg*mult*(1+hs.spell/100));
+      if(s.holy && MONSTERS[m.base].fam==='undead') d *= 2;
+      if(backfire){ const bd = Math.round(d*.5); h.hp = Math.max(1, h.hp - bd); floatNum(MINUS+bd,'hero'); ouch(); out.push(`it backfires for ${bd}`); }
+      else { d = absorb(Math.round(d*(monStats(m).hide||1))); m.hp -= d; total += d; if(d>0){ floatNum(d,'mon','crit'); pulse($('#monWrap'),'hit'); } }
+    }
+    if(s.healp){ const v = Math.min(hs.maxhp - h.hp, Math.round(hs.maxhp*s.healp/100*mult)); h.hp += v; floatNum('+'+v,'hero','heal'); if(rep===0) out.push(`you heal ${v}`); }
+  }
+  if(total) out.unshift(`it hits for ${total}`);
+  if(m && m.hp > 0){
+    const mb = r.mb;
+    if(s.slowT){ mb.slow = {t:s.slowT+L}; out.push('it’s slowed'); }
+    if(s.burn){ mb.burn = {t:3+L, d:Math.max(1, Math.round((s.dmg||10)*.15 + r.depth))}; out.push('it’s burning'); }
+    if(s.venomS){ mb.poison = {t:5+L, d:Math.max(1, Math.round((s.dmg||10)*.25 + r.depth))}; out.push('it’s poisoned'); }
+    if(s.weakM){ mb.weak = {t:3+L}; out.push('its attacks weaken'); }
+    if(s.blindM){ mb.blind = {t:2+L}; out.push('it’s blinded'); }
+    if(s.sunder){ mb.sunder = {t:3+L}; out.push('its armor cracks'); }
+  }
+  if(s.leech && total){ const v = Math.min(hs.maxhp - h.hp, Math.round(total*s.leech/100)); h.hp += v; if(v) floatNum('+'+v,'hero','heal'); }
+  if(S.run && inCombat){
+    if(s.ward){ r.pb.fort = {t:4+L, v:s.ward}; out.push(`+${s.ward} armor`); }
+    if(s.hasteS){ r.pb.haste = {t:3+L, v:s.hasteS}; out.push(`+${s.hasteS} speed`); }
+  }
+  const msg = `You read the ${name}${out.length ? ': '+out.join(', ') : ''}.`;
+  if(inCombat) log(msg); else toast(msg);
+  updateHud();
 }
 function equipItem(arg){
   const [id, from] = arg.split('|');
@@ -2729,8 +2858,8 @@ function drinkLoot(id){
 }
 function takeLoot(id){
   const r = R(); const f = r && findIn(r.loot, id); if(!f) return;
-  if(S.hero.bag.length >= bagMax()){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; }
-  r.loot.splice(f.i,1); S.hero.bag.push(f.it);
+  if(!roomFor(f.it)){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; }
+  r.loot.splice(f.i,1); addToBag(f.it);
   toast(`Picked up ${itemName(f.it)}.`);
   save(); render();
   if(!r.loot.length) r.tookAll = true;
@@ -2756,10 +2885,10 @@ const ACT = {
   item: a => { const [id, ctx] = a.split('|'); const it = findItem(id); if(it) openSheet(itemSheet(it, ctx), 'item'); },
   equip: a => equipItem(a),
   unequip: a => unequip(a),
-  drop: a => { const f = findIn(S.hero.bag, a); if(!f) return; S.hero.bag.splice(f.i,1); toast(`Dropped ${itemName(f.it)}.`); save(); render(); openSheet(bagSheet(),'bag'); },
+  drop: a => { const list = findIn(S.hero.bag, a) ? S.hero.bag : (S.hero.belt||[]); const f = findIn(list, a); if(!f) return; list.splice(f.i,1); toast(`Dropped ${itemName(f.it)}.`); save(); render(); openSheet(bagSheet(),'bag'); },
   take: a => takeLoot(a),
   drinkLoot: a => drinkLoot(a),
-  takeAll: () => { const r = R(); if(S.hero.bag.length >= bagMax()){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; } let n = 0; while(r.loot.length && S.hero.bag.length < bagMax()){ S.hero.bag.push(r.loot.shift()); n++; } if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); if(r.loot.length){ toast(`Took ${n}. Your bag is full now.`); openSheet(bagSheet(),'bag'); } else toast(`Took ${n} item${n===1?'':'s'}.`); },
+  takeAll: () => { const r = R(); if(!r.loot.some(roomFor)){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; } let n = 0; for(const it of r.loot.slice()){ if(roomFor(it)){ r.loot.splice(r.loot.indexOf(it),1); addToBag(it); n++; } } if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); if(r.loot.length){ toast(`Took ${n}. Your bag is full now.`); openSheet(bagSheet(),'bag'); } else toast(`Took ${n} item${n===1?'':'s'}.`); },
   next: () => nextStep(),
   descend: () => { const r = R(); if(moving) return; closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
     const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
@@ -2774,25 +2903,26 @@ const ACT = {
   restFire: () => restFire(),
   trade: () => { const o = merchantRoom(); if(o) openSheet(merchantSheet(o), 'merchant'); },
   floorInfo: () => openSheet(floorInfoSheet()),
-  mbuy: a => { const o = merchantRoom(); if(!o) return; const f = findIn(o.items, a); if(!f) return; const p = merchantPrice(f.it); if(S.hero.gold < p || S.hero.bag.length >= bagMax()) return; S.hero.gold -= p; o.items.splice(f.i,1); S.hero.bag.push(f.it); toast(`Bought ${itemName(f.it)}.`); save(); updateHud(); openSheet(merchantSheet(o),'merchant'); },
+  mbuy: a => { const o = merchantRoom(); if(!o) return; const f = findIn(o.items, a); if(!f) return; const p = merchantPrice(f.it); if(S.hero.gold < p || !roomFor(f.it)) return; S.hero.gold -= p; o.items.splice(f.i,1); addToBag(f.it); toast(`Bought ${itemName(f.it)}.`); save(); updateHud(); openSheet(merchantSheet(o),'merchant'); },
   toTown: () => goTown('You return to Emberhold. Sell your loot at the shop.'),
   deadToTown: () => { S.hero.hp = Math.round(heroStats().maxhp*.5); goTown(); },
   shopTab: a => { shopTab = a; render(); },
-  buy: a => { const f = findIn(S.shop.items, a); if(!f) return; const p = itemValue(f.it); if(S.hero.gold < p || S.hero.bag.length >= bagMax()) return; S.hero.gold -= p; S.shop.items.splice(f.i,1); S.hero.bag.push(f.it); closeSheet(); toast(`Bought ${itemName(f.it)}.`); save(); render(); },
-  buyStaple: a => { const it = mk(a, stapleLvl()); const p = itemValue(it); if(S.hero.gold < p || S.hero.bag.length >= bagMax()) return; S.hero.gold -= p; S.hero.bag.push(it); toast(`Bought ${itemName(it)}.`); save(); render(); },
-  sell: a => { const f = findIn(S.hero.bag, a); if(!f) return; const p = sellPrice(f.it); S.hero.gold += p; S.hero.bag.splice(f.i,1); closeSheet(); toast(`Sold for ${p} gold.`); save(); render(); },
+  buy: a => { const f = findIn(S.shop.items, a); if(!f) return; const p = itemValue(f.it); if(S.hero.gold < p || !roomFor(f.it)) return; S.hero.gold -= p; S.shop.items.splice(f.i,1); addToBag(f.it); closeSheet(); toast(`Bought ${itemName(f.it)}.`); save(); render(); },
+  buyStaple: a => { const it = mk(a, stapleLvl()); const p = itemValue(it); if(S.hero.gold < p || !roomFor(it)) return; S.hero.gold -= p; addToBag(it); toast(`Bought ${itemName(it)}.`); save(); render(); },
+  sell: a => { const list = findIn(S.hero.bag, a) ? S.hero.bag : (S.hero.belt||[]); const f = findIn(list, a); if(!f) return; const p = sellPrice(f.it); S.hero.gold += p; if((f.it.qty||1) > 1) f.it.qty--; else list.splice(f.i,1); closeSheet(); toast(`Sold for ${p} gold.`); save(); render(); },
   sellGear: () => { const gear = S.hero.bag.filter(isGear); const p = gear.reduce((a,it)=>a+sellPrice(it),0); S.hero.bag = S.hero.bag.filter(it => !isGear(it)); S.hero.gold += p; toast(`Sold ${gear.length} item${gear.length===1?'':'s'} for ${p} gold.`); save(); render(); },
   restock: () => { if(S.hero.gold < 15) return; S.hero.gold -= 15; S.shop = genShop(); save(); render(); },
   rest: () => { const c = restCost(); if(S.hero.gold < c) return; S.hero.gold -= c; S.hero.hp = heroStats().maxhp; toast('You sleep soundly. Health fully restored.'); save(); render(); },
   restFree: () => { const mx = heroStats().maxhp; S.hero.hp += Math.ceil((mx - S.hero.hp)/2); toast('The straw is itchy, but you feel better.'); save(); render(); },
   store: a => { const f = findIn(S.hero.bag, a); if(!f) return; S.hero.bag.splice(f.i,1); S.stash.push(f.it); closeSheet(); save(); render(); },
-  retrieve: a => { const f = findIn(S.stash, a); if(!f || S.hero.bag.length >= bagMax()) return; S.stash.splice(f.i,1); S.hero.bag.push(f.it); closeSheet(); save(); render(); },
+  retrieve: a => { const f = findIn(S.stash, a); if(!f || !roomFor(f.it)) return; S.stash.splice(f.i,1); addToBag(f.it); closeSheet(); save(); render(); },
   resetAsk: () => openSheet(`<div class="grab"></div><h3 class="sheet-title">Start a new character?</h3><p class="lead" style="margin-top:8px">This erases your level, gold, gear and stash.</p><div class="sheet-actions"><button class="btn" data-act="closeSheet">Keep playing</button><button class="btn primary" data-act="reset">Start over</button></div>`),
   upgrade: a => { const u = UPGRADES.find(x => x.id===a); if(!u) return; const t = S.town, lv = t[a]||0; if(lv >= u.max) return; const c = u.cost[lv]; if(S.hero.gold < c) return;
     S.hero.gold -= c; t[a] = lv+1;
     if(a==='train') S.hero.points = (S.hero.points||0) + 2;
     if(a==='temple') S.hero.hp = Math.min(heroStats().maxhp, S.hero.hp + Math.round(heroStats().maxhp*.08));
     if(a==='smith') S.shop = genShop();
+    if(a==='belt'){ S.hero.belt = S.hero.belt || []; for(const it of S.hero.bag.filter(x => beltTakes(x))){ if(beltCount() + (it.qty||1) <= beltCap()){ S.hero.bag.splice(S.hero.bag.indexOf(it),1); addToBag(it); } } }
     toast(`${u.name} upgraded to level ${t[a]}.`); save(); render(); },
   reset: () => { closeSheet(); newGame(); save(); render(); toast('A new adventurer arrives in Emberhold.'); }
 };
