@@ -22,8 +22,8 @@ Open `index.html` in any modern browser. It's a single self-contained file: no b
 - **Gear in 8 slots** (weapon, shield, head, body, hands, feet, neck, ring), with cloth, light and heavy armor builds, two-handed weapons, and dozens of positive, negative and mixed item affixes.
 - **Five attributes** (Strength, Dexterity, Vitality, Intelligence, Luck) with points to spend each level, and a Character screen that shows exactly what's affecting every stat.
 - **Scrolls with affixes:** 11 scroll spells (Flame, Frost, Lightning, Venom, Hex, Sundering, Leech, Holy, Ward, Haste, Mending, plus Escape) that roll prefixes and suffixes like everything else, such as a Quickened Flame Scroll of Venom or a Volatile Lightning Scroll of Backlash.
-- **Stacking consumables** (up to 10 per bag slot) and a purchasable **Potion Belt** that holds potions, and later scrolls, outside the bag.
-- **A Guild Hall** in town with permanent upgrades that survive death: a bigger pack, bonus stat points, a temple health blessing, free starting potions, better shop gear, a bank vault that protects gold, and a cartographer who marks the stairs.
+- **Stacking consumables** (up to 10 per bag slot) and a **Potion Belt** that holds potions outside the bag, expanded at the Apothecary.
+- **A walkable town:** tap buildings on the town map. The Training Yard, Temple, Apothecary, Smithy, Bank and Cartographer each sell modest permanent perks and offer easy, medium and hard quests (slay 250 Skeletons, bring back 40 Spider Silk, reach floor 12 and survive). Quest progress and materials only count when you make it home alive. Completing quests earns reputation, which unlocks higher perk levels. The Smithy also reforges an item's prefix or suffix, and the Guild Hall keeps your records: runs, deaths, biggest hit, damage dealt and taken, and every monster species you've slain.
 - **Turn order driven by speed**, status effects (poison, burning, slowed, blinded, cursed, corroded), a loot screen with side-by-side item comparison, a shop, a tavern with a stash, and roguelite death rules.
 
 ## Project layout
@@ -38,6 +38,7 @@ art-tools/          Python scripts that generate the 48x48 monster sprites
   folk1.py-folk3.py Hand-built humanoids, one function per character
   humans.py         Older template humanoid generator (also newfolk.py)
   dragons.py        Parametric dragon generator
+  buildings.py      Town buildings
   objects.py        Dungeon objects: chest, stairs, shrine, campfire, merchant (plus objects2.py: trap, entrance)
 ```
 

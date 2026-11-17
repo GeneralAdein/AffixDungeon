@@ -582,6 +582,31 @@ svg[shape-rendering]{display:block}
 .qty{color:var(--rare);font-size:18px}
 .cell .qx{position:absolute;right:4px;top:1px;font-size:14px;color:var(--ink);background:rgba(0,0,0,.35);padding:0 2px;line-height:1.1}
 
+
+/* ===== Town map, buildings, quests, records ===== */
+.dun.townmap{height:100%;min-height:520px}
+.room.bld{background:#1d1b26;border-color:#8a8270}
+.room.bld img{width:46px;height:46px;margin-bottom:8px}
+.room.bld.gatebld{border-color:#e0743a;background:#2c1d14}
+.tbadge{position:absolute;top:0;right:0;min-width:16px;height:16px;line-height:16px;font-size:14px;text-align:center;background:#c9bfa6;color:#121119}
+.tbadge.ready{background:#6ad27c}
+.tquests{height:86px;overflow:hidden;font-size:18px;line-height:1.15;color:var(--muted)}
+.tquests b{font-weight:400}
+.bhead{display:flex;gap:12px;align-items:center;margin-top:6px}
+.bhead img{width:72px;height:72px;image-rendering:pixelated;flex:none;background:#0b0b10;border:2px solid var(--line)}
+.bhead h1{font-size:30px}
+.quest .qd{font-size:15px;padding:0 5px;border:2px solid currentColor}
+.quest.easy .qd{color:var(--good)}
+.quest.medium .qd{color:var(--rare)}
+.quest.hard .qd{color:var(--bad)}
+.qbar{position:relative;height:14px;margin-top:4px;background:var(--panel2);border:2px solid var(--line)}
+.qbar i{position:absolute;left:0;top:0;bottom:0;background:var(--xp)}
+.qbar span{position:relative;display:block;text-align:center;font-size:14px;line-height:10px;color:var(--ink)}
+.killgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kill{display:flex;flex-direction:column;align-items:center;padding:4px;background:var(--panel);border:2px solid var(--line);font-size:15px;line-height:1.1;text-align:center}
+.kill img{width:40px;height:40px;image-rendering:pixelated}
+.kill b{font-weight:400;color:var(--rare);font-size:18px}
+
 @media (prefers-reduced-motion: reduce){
   .bob,.ghost,.aura,.parts span,.thorn-ring,.fx-frenzied .bob,.fx-ghostly .bob,.sfx-clumsiness .bob{animation:none !important}
   .sfx-speed .ghost{opacity:.15;transform:translateX(-10%)}
@@ -1293,8 +1318,8 @@ function emptyEquip(){ const e = {}; for(const s of SLOTS) e[s] = null; return e
 const STACK_MAX = 10;
 const isConsumable = it => ['potion','scroll'].includes(IBASE[it.base].kind);
 const stackKey = it => [it.base, it.ilvl, it.pre||'', it.suf||''].join('|');
-function beltLevel(){ return (S && S.town && S.town.belt) || 0; }
-function beltCap(){ return beltLevel() >= 2 ? 30 : beltLevel() >= 1 ? 15 : 0; }
+function beltLevel(){ return 1 + perk('holster'); }
+function beltCap(){ return BELT_BASE + 3*perk('pouch'); }
 function beltTakes(it){ const k = IBASE[it.base].kind, l = beltLevel(); return (k==='potion' && l >= 1) || (k==='scroll' && l >= 2); }
 function beltCount(){ return (S.hero.belt || []).reduce((a,x) => a + (x.qty||1), 0); }
 /* Is there room for this item? Matching potions and scrolls stack, and the belt holds them without using bag slots. */
@@ -1320,16 +1345,16 @@ function addToBag(it){
   }
   h.bag.push(it);
 }
-function bagMax(){ return BAG_BASE + 4*((S && S.town && S.town.bag) || 0); }
+function bagMax(){ return BAG_BASE + 2*perk('pack'); }
 function newGame(){
   const equip = emptyEquip(); equip.weapon = mk('shortsword'); equip.body = mk('padded');
-  S = {v:2, hero:{lvl:1,xp:0,hp:1,gold:40,attr:{str:0,dex:0,vit:0,int:0,lck:0},points:0,equip,bag:[mk('potion'),mk('potion'),mk('flame')],deepest:0}, stash:[], shop:null, run:null, screen:'town', town:{}};
+  S = {v:2, hero:{lvl:1,xp:0,hp:1,gold:40,attr:{str:0,dex:0,vit:0,int:0,lck:0},points:0,equip,bag:[mk('potion'),mk('potion'),mk('flame')],deepest:0}, stash:[], shop:null, run:null, screen:'town', town:{}, perks:{}, rep:{}, quests:{}, mats:{}, townMigrated:true};
   S.hero.hp = heroStats().maxhp;
   S.shop = genShop();
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function load(){
-  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
+  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; S.perks = S.perks || {}; S.rep = S.rep || {}; S.mats = S.mats || {}; migrateTown(); if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
   return false;
 }
 
@@ -1390,7 +1415,7 @@ function heroLedger(){
   for(const a of ATTR_KEYS){ put(a, 'Base', 5, 'base'); put(a, 'Points you spent', h.attr[a], 'points'); gear(a); }
   const A = {}; for(const a of ATTR_KEYS) A[a] = Math.max(0, tot(a));
   put('maxhp', 'Base', 50, 'base'); put('maxhp', `Level ${L}`, 8*(L-1), 'level'); put('maxhp', `Vitality ${A.vit}`, (A.vit-5)*4, 'attr'); gear('maxhp');
-  const tb = (S.town && S.town.temple) || 0; if(tb) put('maxhp', `Temple Blessing ${tb}`, Math.round(tot('maxhp')*.08*tb), 'town');
+  const tb = perk('blessing'); if(tb) put('maxhp', `Temple Blessing ${tb}`, Math.round(tot('maxhp')*.02*tb), 'town');
   put('spell', `Intelligence ${A.int}`, (A.int-5)*3, 'attr'); gear('spell');
   const magic = items.some(g => g.s.magic), venom = items.some(g => g.s.venom);
   put('atk', 'Base', 2, 'base'); put('atk', `Level ${L}`, L-1, 'level'); gear('atk');
@@ -1520,7 +1545,7 @@ function shopLvl(){ return Math.max(1, S.hero.deepest||1); }
 function genShop(){
   const L = shopLvl(), items = [];
   const kinds = ['weapon','weapon','shield','head','body','body','hands','feet','neck','ring'];
-  const sm = (S && S.town && S.town.smith) || 0;
+  const sm = perk('favor');
   for(let i=0;i<8;i++) items.push(genItem(L + sm + pick([-1,0,0,1]), pick(kinds)));
   return {items};
 }
@@ -1560,6 +1585,7 @@ function updateHud(){
   $('#lvTxt').innerHTML = `Lv ${h.lvl}${h.points?' <span class="ptsdot">+'+h.points+'</span>':''}`;
   $('#xpFill').style.width = (h.xp/xpNeed(h.lvl)*100) + '%';
   $('#goldTxt').textContent = h.gold;
+  { const st = stats(); if(h.gold > st.mostGold) st.mostGold = h.gold; }
   const bi = $('#bagIco'); if(bi && !bi.innerHTML) bi.innerHTML = ICON.bag;
   $('#bagTxt').textContent = `${h.bag.length}/${bagMax()}`; $('#hudBag').classList.toggle('full', h.bag.length >= bagMax());
 }
@@ -1593,6 +1619,220 @@ function monArt(m, id='', mini=false){
     <div class="parts">${parts}</div></div>`;
 }
 
+const BART = {"shop": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACWklEQVR42u2Yv0vDQBSA3x1FpKBIEX8N6iBFpDj4BzhJEedOLhbBxVFXKVIQXNyFQqmLU/8AcRJxdhAHCVKs1lJUirSliog6SGKbXM53yd1FJA8K6TXJfd/lvdckAGGEEUYYYfzl6I30fKo8P1UNfzg3rlSCqoYHAFApQVXDm7E9OahEguqAVylBdcGrkqA64VVIUN3wsiVoEPAyJagfcD/wdgmvIkTXqhv1NnM8Hota28vnt/D6/kaUCojCu4Hb4c39tm+ehCSoKnij3ubCy6oLIhteFDoeizKPwV4JIgPey0qjrgZCgniFVwUtKkFE4XWBYyUIBr4T+qqhR2C6P4qSIDx4E1wX9G8yLAmCeRQcGqCBwT88f1jb6CtgF9nfmNYGXKq0frarbSie1blFHBGdIJM3HGPZ1bgvaNY508kx1LER0YkuiouO8dnUkWcJ3jnnEwNyBWRG56ovrZ8w9zm9fP6bApm8AWsLU+j9d4rGp1sdBNdekFGuNYN5L8QrUFaMDlasDxZeOIWyq3GYTR2hu5CZKpm8wS3ytXQ/AMxY33OFBgreUw1guo256maeJxPDkMkbzNb4De8c29rFCUhNoVKlZa26vUiTiWEoHFcdx+QKDcfY1u69/vdCpUoLCsdVbndhSZRrzS5gEXhpbbTz75/XRe4eX1x/W9m89jR3RCV8Z7jB28e1CrDgy7UmTIz0cdtgOjnGrAe3u1GpN3PYlbfDH+xNdaUJ5mbNvBuVXsSi8H5yXHoXwuY8L/8DE9AJX6q25RWx/SnJLzj2HFK7kMikKlPm38UXcrJbUZr4ykcAAAAASUVORK5CYII=", "tavern": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACvElEQVR42u2YMWvbQBTH3xlhTHHdrUheQovaKWSpP0DolAZTPHXoUigZ3C4ZSj9Cl0ChnpzBlHbpEDIUY0KyFE+d3KVkskXArVFFY0KRhCNCwB3CObItnd/JJ10p+oMHS3en3//dvac7AaRKlUq6dnbefUijkEY+RDklO45z/Ezc8HerJaaJZWeBxA1PdbLbAe/ygrBmxn9fqoFZeAAA17Thd7ML3uUFySnZ8ZOnz+f67X16z20ikwQ81e3H90OXk2WZ8nOABe83IQpeqAEMvN9Es7n371QhHniqwsOiEBMZGfAiTZBlwAEAsPCuaYfes79c5YDnutxViCQV9TAD+WIh9F0RiwFeeFbk/fC0HX1XxJIDPPCuaTPhWRWKZ/9ERMPzQueLhcA+2JkgIuCjRBojjAkSFT4uaF4TJMqmLGmxTBAMvB96ZLmJQN9Q8ygThAVPwZOCXmQmyATBHAXzOXnwrsc+8ChhHWnjnJIdb63riQEPhtezbZ6N4OuJzUxihfcBjbYxd21Zg0FjbqyqqL4K74OM1ubcdb18ENkEa8w131ZD2AyIkj/qmy/bgW2+I0q2Igt+u3x1tKy1etD9cT51f7t8Dx6tXf9/s98dh+VBBiSq1upBvarBqeNNfvWqBrVWb9KmbzlyZ6DRNhbmx/7rO4HXF8FzG9ha10EvH6CrEF0qtVaXK8nrVQ2OOo74KoQtmTRB6TqvlDRotA10aZT2XWgwdCdRp/BUlZIGh8cWapwXu7+SNzAYunB4bM2BRzWBlSIKPkz+RPx5eo4eE9tWiROeBdS3HKiU1MDl8mDlVjIzEATftxxYUW8yy+DGqgqfO+Hr/Fv/z9RuVOhmDhv5WfiPb3V49srg2qzR3ajwJOaFB4ApeKllFLvmoyRk7AaShDfPRuKSePaUtCw4dgyhVYjnoXEumf9OfwFfG4xj5H/6LAAAAABJRU5ErkJggg==", "guild": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACTUlEQVR42u1YPUjDQBh9lRA61EWcMoqIg0Mp0kGcnDpIBxFHXR3EpVsRBwc3F3FwtWMRhyCOTk4dijhIKUUQIYQaSqkFiwhxkBzXmrskl+uf3IPC9Zq8e+++7777KKDARlLT3dv0mpvUdOYn7hraKIxcr6ySca3V7vvtyGq4ve+vxMQa8BHc9z2O+JFFgBYdV/BYzoGqBgoKCgoKCgoKw0FiWhoxVheb4InP5O4mQny72cBL9dDXxMy0p9DMNOw+ACxkzn1TWhMhmyRo0yiae4i99KGFd1s1AIBj3TKJ5o3NyItH4UvNLQPAn8Os8XbdE+4tlt64ZC74eL8fyURUPloLN4V631+Jl+qhCwDJVIrM6zo/zXS9hY5TCm0gKl+v2/W9DzTWpZHUdDef3yFzplkOPCP080EIw5fNrv9Gy2ni+akq9x64OTiWesBF+YQNbF2cSK0monyxIiATonzCBjaOd6UaEOUTMiD7covDN/RmjlVthtrMydot0yyjkDO4JuJGU+jv9W6rho5TgrF02jdv2xYAoFJ5AAAUcgYAYDs9i2uzTOp6WD7pEfB2q+OUkM/vwKoX/zxTqTygkDOIeA/b6VlizI8vm1335ZOeQla9SG7cQROeeBb8TFj1IomMiInQBjyxdLtg2xZZlJUer/YHGb+9f/a1CX7vBfHFisCg+MGehQdafNB7YcULl1FaPG/H6fHElFGeeJYRALg6Wxy/AVHxALBXaIzXQFjxYfN/pAbGKd5xmuI3MS08iCiK8KhcsVoJkcWGmTL/Dj/KeUpXDXKtNgAAAABJRU5ErkJggg==", "yard": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAADPklEQVR42u1YP2gTURj/XTjPQzoEKSVghxtqFOlQJENdpDgHyRA6inQSEQSHLgGHjh0EoYiDBAenkkHKDVKhZAhthyAdSvEPlFROPeWIkoaSxtBzCHe8s++9y+u9o2m5bwofL7/vz/v93vclQGKJJZZYYrJNVzX3zOakq5r76u26O0xFCOWkq5prt9yhK4CVU+qs0/38FrBUqQ6FmHVVc5cqVZhrG4MXwDp8Wpa/cwtbH7bkiEa0ezIweLmocb7ZL59cBwA8ePbRBYBOr6vIjqWwEmg0D2GubeBRcUYosK5qrpc4abtWG4vLljDWUqUKAMw8zu8rZK5tiAmH0v202ULabGHXagMA5mfHhV+2MAFzb2Dq5tTQ34DC62ajeQjj8kVh3s7Pjgf5//0AAFCpNYWxwnII1UDUgeYlL3uAxSbiTq+rLC5bWFy2fF+l1hTuvsf/MFPj5OeLlW+RMcIeEm4B5PWRNOJ1kjUHvIEW9l1pgwwARkYzAIDt10FRGvk6Or2uQgs4luaz8tefIyrtdFVzG2Yu4J+836dh27GZjVOoyieATHOnz8f8jUAB5KoQxbwJDQCDxP2/CD6FzB007bFA0mTHvAElS/xGvu7f6ELB8HMgixCikAfUsNsobzrHqifPhVGHRyUaLhmXpz2V1Q2fTnab2zU/4FwWqzVnoOQnDD10sSPj8s6lwq6V7IAsG3S40W6deQMeHWhfKG86qI7nMN1YB+/8hKELJ07D6fS6yj3LcMtwQs+nPGepmEWpmA3wmvTPWHXQ/N55UtAXji5Rk7+WGT2WDCvu++kWNx/PH6DQnr1P7VyY31sfPPubOqB2/pPtUJe6k8b1XyFd1dwRvY/X7gRnk6if3ERplKnUmpHwSX+n11V8DTzOX5Ui0OcrX/Dw7hVq8u/qv1EqZiPH2LP38ab2Iyhi1nWJWiGXYS5xhVxGWpzYKET6S8Ws36048Du9rpIiKVTIZXxReiKL4ictLnxVZK0V9YuuzSfBV2nr8MJcX2hPy58j+VmfZeF/dZK/10/fVNaPDBl+1pMpC5/7g4Y2iFhbpOhfJ6I4PHzqICO/EGVPWd3+KQWH549VA7cn07g9mUZiHPsH94V3zXCB6TAAAAAASUVORK5CYII=", "temple": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACTElEQVR42u1Xv0vjUBz/vBCKdxRxcCidHEomcXQQ6XA4OLi6CRcyHBk6FJTS0UmkIDh0cConOPkXOIhDB/8CkRI6VIRSuOW4a71DpM9BnsQ0icn7ERPJd0pf2/f9/Pjm+74PUBwrP86pyv11lZvTQYsCA3zpFOj/p0eiIgdRB9wn2VJDej4NefjHnF6gdNCidNCiS1sHdE4vKHkXMu9A5gkQVeVjWGevn/8M+wCA0cU+ZHejvIRyAmkj4K1/d5Q29yG7neYOfHQoHeZY+8yMA+76DwIv+z3QVSr/MHLerH8tGek9iZmq02LpfdvHIwCQcioT2aUTJ5zOjjAJIkN1HvDu+UjEDZKE6gzsfLki3Q2iSvUoLZQREnGDyFRdtO8zQnHcICKqqzyoorpB4qruBe3t9bwRdEa8dwkiUcD3zvdmvluofJOu+u/+1cxaed0OJRHJgevry5l107KlE/jZOZlZW1vbCHWAa5To9XqBCXnDTxCWR+ow597UtGwpTvCCF5pGi9Mhum0D3bYhRMK0bHTbBorTYX4jSzyilkkqCcgAnwgBkRdUKYGxVka15qBacwLbqWnZ2F7W3pDwgm826qjWHIy1cvJXyjDgALC9/KLP6uIEpmWj2aj7/r7ZqOOwdZyOEmKqM/AsVhcn3CATI8DAB4UKEprqrnI3+vv6fP/rXzodiNJVVICXQsAL3q24+zmVJ3GY8l7wp0eV7IwSfsp/3+1nh0BS9R+bAM8IwAM+Th5dZNObm1su4GH/iyuSFhd8WHLRkomb51PEM68dKqc66W3XAAAAAElFTkSuQmCC", "apothecary": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAC+ElEQVR42u2YP2gTURzHv3kUaQMmN7VHloDE4BCyXHGQI1Maijh06CgaAi6lINSl0w0BRwsFB6cjgmMoHTKE4iCSSZolCMJVAqUlxBYktCUVEesQ33m5f3n35yVB8oXA4/py+Xx/9/v93u8KzDTTTDPNNM2an7t1w/P+hDf8/eIdriYIb3gA4GmC8EgLIzxVelXkYoKEnRZ28DxN+HoCvW4fXuF5mSB+oq/Vu/jx62fEKzwPEyTsgmVVWCaIV0hz+viBD9MECRL1IPBmE36NzPn94aDgVIIY1e/1qdK+MdcWlydAYt46llPXEsTo0D4/KcXtJHYDD7MuyCTB6T7zfi8mCGvBkpjzAUah/UTc6TusJggLvF3BBoEOM50iXuAP99oAgNQDcazvFHYn/0gDRnhjlC/O+mOBji1GmUxEWE7dcUGPMmNnIsIy8y8KZGLwZ73f+pr5CZiNvNm6Nzbg9unVv3Wnj2rjO9xOZ8+jhKJqlmvlUjoQtN09i4VE+LOQompoVVct17Prdd8m3O6Zywj8hrmgMkb94cYH2z0fP/em04CianiWTzHvf1nVHKfUybUXk1a297GyvW+5fty9nMw06lagZu3WjmzXo+A9p1C5lEZ2vc7chWiqKKrmuGe3doRGVgI2ngAAGlkJcq2JtWUx/C7E2jJp1GmeFzJLUFTN0hp1eJMaWQnyIZuJUIu4fXqFykHHtkALmSVUDjrM/X3sLzRu8GYTVM8f3YXcalr2yS32FCJhwTvJWIgn59eWv60ti0Mm5FYTUjKOk/Nr/cM1hdzgjbKDp9elZFw3ISXjfP6tQguzXErra7t8Pu5eIinedm2DxUJiKJUAIDo/OKe+fLuwTKOBhzlF1SC/3xqs8zt4/HoQzcrmgmNRmuHfvkrh6YuvnoY1Oo0GrgEKD0CHp2tzJJ0ib4Sfyi7kJf/HbqCR39HX7zYXhtajUsEvfLvTD6+Ii4UEKn9N5DKCbiKXERx/yA2cFS7ULmR8uRj1osEzZf47/QHWH4wrWEqLeQAAAABJRU5ErkJggg==", "smithy": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACuUlEQVR42u1Yz2vaYBh+DEFktCyOMWSXiYziYRQPJR1DRgNjKz2UUEYPY6Ds2D9hf0LZYKcdh152kCIiZXhzlB5WDxJkiHgoOYlIaOPaMSnS7CBxNolpki9pdM0LEnwh4Xnen9/zAYEFFpjvtrv7KRdEIYh8kAVnFvILeIQOK1rfYHgRmgsCETqsbL95p/MXvn6xTYKalVLqdjuO3qPmGfxMZSAgEBC4rQRIGtjyHjBaOsS7YGFB5xucn8PucgtZAZ9+yfuSHanXRUv4YUri/+4Bv6MPAMnUU9MSpkk+PgtGzyNoS02sls8kcFk+uXGADHMPAKY2M20l6n4Atxq0kJX5bzSzb8rU3TBtlJpmYDC8CEXosLK5ue3LZpakHpqNuukesDWF8lutajTb4LR+UoLlckHnY9m0u1MIAKLZBieWnuv8cb7gmES5XIDxNw+QSCy5SwAA7spyFcCdPsOsuhXxjZ3vAIBvn9e82wOq9RmGIy2XD7l9nV+oC9jYeW+bBGWj/o8MMuGKCXXB202c32pVM8Ukd8qLQE5AP5sizoQWdLv50zsCmWKSy1OVf9HPCYiWfuE0t3wUzTZW7TawCl4LutmhEOcPxlNIknrkgiZCh5U/bx+O/vDx0bMkjohdrjtSWbXaoT6Sw9/gV2J4FFvEx0pnTOC6PWCdgApetZII8PFqppjk3JCHKqnXqUUAwJ5whkRi6VoC9gTNWnb0mygtt7Qty6bBsmnsCWfejlFSYW5UPlpTSRwft6+cyWyfRr0Av/LsBYk+VrQkiJr4VWfZUa3bJWEm7q2N0ct15KnKGLhT8NMU3v0HMcfqz1IGtHf5pA1bqx0i/vjJFZ9KwkhEdcW2Mz1AWvNmE2eymY1KSpY6Y0Hj2hh1A7x2bJqVjmvHaa1K8vIeyLtrFY+Aa8HL8sn4JuJW2F+bz2EuUTqE7wAAAABJRU5ErkJggg==", "bank": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACNklEQVR42u2XvUvDQBjGnxyhCDqIdAodpSiKU3FzEXEQBxcdxKI4dSwI4iS4iaB07CCi1D/AoaO4uImDSLU3VFCUIJhB8JMi1kFS2jTppUnetCl5tlzC5fe8X8kBoUKFChWqk9UjRyqBhi/sJyqUJhgl/GV2DABwmR0jywSjhteVSyskJpgf8JQmmJfgzeCNJrwyIlFHXVeRawCA4aFodS2Rusb3T1lqqwEr+GgsUnd9fqrWweuGkhnVlQnmBzwATEwpJH3BKMsGAPL5W+EzbkxIFPBmGQAA7alcVz5GOSknRhV5swwUuWYJ7zQTEgV8kWsNNX9+qtp+TyuZkOyC678EdkalF0pm/g2LjEhuo+4ldK30kSv6Vkh24Bc2r9r2R7u1GGtaUrId+OOTs7YZWJqbRC4dQzKjVsxMMC8mDYU45+CcCyeUbAVvrO3azfzWTekVI4P9yKWVhkw0GPj+KUuJ1HXVaXwoXoUvFG59h5cH4tjOlwB8mk4l0x7QH+qRI5XDgyxWVlNti/7szDT2eKn1Jjbq8CBbV0rbOxnLdX3NqJXVVEv7bKynhVmXnUam71f1LMpu9mIIuEIDXW+AeoI5NvDOFLwzRQg/P8qEJkT7kEwhO1GfH/2Pz3j0gywTJAZ08FqNRz9wofV2fg+o93eO7nVsEz88v3XHGH18+QqeAerokxowwh/tDgbHgFnkl9dKwe0Bqvr3xYAbeDsnQOGHrPYsbHUuNltvBt7KPp5loBPhu0J/kec4QRSLqYgAAAAASUVORK5CYII=", "cartographer": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACsUlEQVR42u2YMWjbQBSGfwkhRCA0eGhMloSQmg4mBGo6hU7FlJAhQ6YsDoEuXjq0BE8aAi2mtEOWjMJZOnkqogRPpWQqGUIoNFyKqdMg3LSYYBenlBJ1CDKyLNk+6U5yit5iWdadv/+9e+/eCYgttthiiy2ACbwmViTZtH///fePcGMEKJJslvKzXffWd6pcRIi84RcOEgCAUn62JyojFwE3z1tGTpsAgBf6T6aREMNINAueh0ksk1UWEwPhZTEBSA2TVXJLQcGX777s3KuQoqfHyVnbGtk1Rj/eNIMIEfzC2yHsViFFPFsSXeHfHinIpgqu4/TjTV8iRJbwAJBNFfDq3RUVPADcn8r7qlICS3hnJJzCvOy8+bVz/dHYoYqEwAOe1uwCaEUIvOCdULQ2rAiBBXxQ2CAiJFZhH8lu1M37YYMPioJ00zxOLcAJ3miHJyQxNsN2IwsTntk+oEiyeXtCjAzw/OIqeA5sbaRCha6e/br+NNoo7zeiPw/4gefWTqsaYR4htznXs1PsBagawVH5Uc/9+dU93yL6zfkgPcH/RMbC60v5967PfPh0MZoCVI3g8cM5AMC2fgJyeun63JPlOwCA52VielUiKcqE3dZPcLC/6/l7ZjGHlUwy2irklqCRvZXY2khhfnVv6CpkLRVVIwOT/HDt+sS28KbIt4wOU20sr1vrPJuehKoRz9J4uFbogNuvQ3kv5NyEShWjA951Jk5PolQxXEXYgWkjIIYB7xTB0kRW8F5Wq7c6199+XFLPPWiMxBO+H0it3sJKJonMYs5zzL3pW3xzwA2+Vm9hOjne431nn2MtpTHFu6P//L3Jpp3243kn/O7rOeSefqFq1ri107TwALrgI01i2n7db/JyERAmfNVos9vI7ODDTtwPfNg5mO7ENH/Kc8n8d/YP/2BfHYMBAxcAAAAASUVORK5CYII=", "square": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACLklEQVR42u1Yv0sCURz/3HHYEQ4R0hQREg0OIhFOIeEkDdEQDk7iFE5NEf4F0tTkKE4ODiEO0RQRTQ4hDtLoECLh0CAiIVxDvOPeeXrvne8Og/eBB8f7+fm8933vfd4BEhISEhISEhISEhISEhLriVrf6MpZkKvhgaiuhQx78mMsRXSHuhYysrmCY1mjXsV09iN0TDUo8sPhAKl0BqJXQvMrjIbDQSDh6ksIpdIZKm80+gIA9LrvwkNI8WNWdC1k6OEwlTcdj4WT9yWEan2je3WwgfPzLBVKr89PvoSQKrrD/L4SD/IuUBEw3ASuvYC1D6GgIWQTs15O9noiTiXVC1l7yuYK0MNhKs21s5VncwWI8EsK78wRq9BqNag6xWbP/L4vFnB5vEcdo2+fM1xXqmadykWMak+O3Ua9yrVCGgt5q78hxK2EvcDengiyjtWoVw03ESov+WKztzL5RYJipQdzgljNn8pLflW8tD8c80i+VQQAVxEajy12GpzFjf6ZuW2z/aJ++p22Y34qncHr85NjOCmsjhIA2u03xEoPTAI6tTuc7GrmBk7kb1yJAsDksYxk8oRyscucrMJji4kIstRWIvuJ5Byx784LAGArceoqePJYBgBEo4dzZctsuMLq7clsRCI7lBCCzbNbrr1ACBM4EWd5Qygsx2gsfrS0TiSyMyfIDYsI85D3dJG5iVkVve4710XG7UWcjjSvoqxkvfojIU88r38a/Hhi/jv8AnSSD/vbQBM2AAAAAElFTkSuQmCC"};
+/* ============ the town: buildings, perks, quests and records ============ */
+/* Permanent perks live in the buildings that sell them. They are modest, expensive, and the higher levels need reputation earned through quests. */
+const PERKS = {
+  pack:{b:'shop', name:'Larger Pack', desc:'+2 bag slots per level.', max:8, base:3000, pow:1.6, now:l => `Bag holds ${BAG_BASE+2*l} items`},
+  drills:{b:'yard', name:'Drills', desc:'+1 stat point per level, yours to spend.', max:10, base:5000, pow:1.5, now:l => `${l} bonus point${l===1?'':'s'} earned`},
+  blessing:{b:'temple', name:'Blessing', desc:'+2% max health per level.', max:10, base:4000, pow:1.5, now:l => `+${l*2}% max health`},
+  pouch:{b:'apothecary', name:'Belt Pouches', desc:'+3 potion belt slots per level.', max:5, base:3000, pow:1.5, now:l => `Belt holds ${BELT_BASE+3*l}`},
+  holster:{b:'apothecary', name:'Scroll Holster', desc:'Scrolls go on your belt too.', max:1, base:15000, pow:1, rep:4, now:l => 'Scrolls ride on your belt'},
+  favor:{b:'smithy', name:'Smith’s Favor', desc:'Shop gear is one item level higher per level.', max:3, base:8000, pow:1.6, repStep:3, now:l => `Shop gear +${l} levels`},
+  vault:{b:'bank', name:'Vault', desc:'Lose 5% less gold when you die, per level.', max:5, base:4000, pow:1.6, now:l => `Death costs ${50-l*5}% of your gold`},
+  charts:{b:'cartographer', name:'Master Charts', desc:'The stairs are marked on every floor’s map.', max:1, base:100000, pow:1, rep:6, now:l => 'Stairs always marked'}
+};
+function perk(id){ return (S && S.perks && S.perks[id]) || 0; }
+function perkCost(id){ const p = PERKS[id], l = perk(id); return Math.round(p.base * Math.pow(l+1, p.pow) / 50) * 50; }
+function perkRep(id){ const p = PERKS[id], l = perk(id); return p.rep !== undefined ? p.rep : l * (p.repStep || 2); }
+const BELT_BASE = 6;
+
+const BUILDINGS = {
+  gate:{name:'Dungeon Gate', x:2, y:0, art:'gate', desc:'The way down.'},
+  guild:{name:'Guild Hall', x:2, y:1, desc:'Records of every adventurer who went below. Mostly you.'},
+  shop:{name:'Shop', x:1, y:1, desc:'Buy and sell gear.'},
+  tavern:{name:'Tavern', x:3, y:1, desc:'Rest and store items.'},
+  yard:{name:'Training Yard', x:0, y:1, desc:'Drills that make you stronger, and bounties on the deep.'},
+  temple:{name:'Temple', x:4, y:1, desc:'Blessings for the faithful, and the dead to put to rest.'},
+  square:{name:'Town Square', x:2, y:2, desc:'A fountain, and a little peace.'},
+  smithy:{name:'Smithy', x:1, y:2, desc:'Reforge your gear’s affixes, and earn the smith’s favor.'},
+  apothecary:{name:'Apothecary', x:3, y:2, desc:'Potions, belt pouches, and work for gatherers.'},
+  bank:{name:'Bank', x:0, y:2, desc:'Protect your gold from death.'},
+  cartographer:{name:'Cartographer', x:4, y:2, desc:'Maps of the deep, for those who’ve been there.'}
+};
+const ROADS = ['gate|guild','guild|shop','guild|tavern','shop|yard','tavern|temple','guild|square','square|smithy','square|apothecary','yard|bank','temple|cartographer','shop|smithy','tavern|apothecary'];
+const QUEST_GIVERS = ['yard','temple','apothecary','smithy','bank','cartographer'];
+
+/* ---------- crafting materials: dropped by monster families, kept in a pouch, used for quests ---------- */
+const MATS = {
+  silk:{name:'Spider Silk', fams:['spider']}, venom:{name:'Venom Sac', fams:['serpent']}, spore:{name:'Spore Cap', fams:['fungus','ooze']},
+  tail:{name:'Rat Tail', fams:['rodent']}, stinger:{name:'Stinger', fams:['flyer']}, chitin:{name:'Chitin Plate', fams:['insect','ant','crawler']},
+  bone:{name:'Bone Dust', fams:['undead']}, scale:{name:'Dragon Scale', fams:['dragon']}, core:{name:'Golem Core', fams:['construct','aberration']},
+  pelt:{name:'Thick Pelt', fams:['beast','bear','beastfolk']}, ear:{name:'Goblin Ear', fams:['goblinoid']}, tusk:{name:'Orc Tusk', fams:['orc']},
+  sigil:{name:'Dark Sigil', fams:['caster','cleric']}, insignia:{name:'Steel Insignia', fams:['warrior','archer','outlaw','humanoid']}
+};
+function matFor(fam){ return Object.keys(MATS).find(k => MATS[k].fams.includes(fam)); }
+
+/* ---------- quests ---------- */
+const DIFF = {easy:{n:'Easy', gold:400, rep:1}, medium:{n:'Medium', gold:1500, rep:2}, hard:{n:'Hard', gold:5000, rep:4}};
+function monsterPool(maxMin, filter){ return Object.keys(MONSTERS).filter(k => MONSTERS[k].min <= maxMin && (MONSTERS[k].w ?? 1) >= .3 && filter(MONSTERS[k], k)); }
+function genQuest(b, diff){
+  const lim = {easy:2, medium:5, hard:9}[diff];
+  const n = (e, m, hd) => ({easy:e, medium:m, hard:hd})[diff];
+  const killBase = (filter, counts) => { const k = pick(monsterPool(lim, filter)); return {kind:'kill', target:k, need:counts, label:`Slay ${counts} ${plural(MONSTERS[k].name)}`}; };
+  const killFam = (fams, name, counts) => ({kind:'killfam', target:fams, need:counts, label:`Slay ${counts} ${name}`});
+  const gather = (mats, counts) => { const m = pick(mats); return {kind:'gather', target:m, need:counts, label:`Bring back ${counts} ${MATS[m].name}${counts===1?'':'s'}`}; };
+  let q;
+  switch(b){
+    case 'yard': q = Math.random() < .6 ? killBase(x => x.type==='humanoid' || ['beast','beastfolk','rodent'].includes(x.fam), n(12,40,120)) : killFam(['orc','goblinoid'], 'orcs and goblins', n(15,50,150)); break;
+    case 'temple': q = Math.random() < .5 ? killBase(x => x.fam==='undead', n(10,40,250)) : killFam(['undead'], 'undead', n(15,60,200)); break;
+    case 'apothecary': q = gather(['silk','venom','spore','tail','stinger'], n(5,15,40)); break;
+    case 'smithy': q = diff==='hard' ? gather(['scale','core'], 8) : gather(['chitin','insignia','tusk','pelt'], n(6,18,0)); break;
+    case 'bank': q = {kind:'gold', need:n(600,2500,8000), label:`Come back from one run with ${n(600,2500,8000)} gold earned`}; break;
+    case 'cartographer': q = Math.random() < .5 ? {kind:'depth', need:n(4,8,12), label:`Reach floor ${n(4,8,12)} and make it back alive`} : {kind:'rooms', need:n(40,150,400), label:`Explore ${n(40,150,400)} rooms`}; break;
+  }
+  return Object.assign(q, {id:uid(), b, diff, have:0, status:'offered'});
+}
+function plural(n){ return /(s|x|sh|ch)$/i.test(n) ? n+'es' : /y$/i.test(n) && !/[aeiou]y$/i.test(n) ? n.slice(0,-1)+'ies' : n.endsWith('f') ? n.slice(0,-1)+'ves' : n+'s'; }
+function board(b){
+  S.quests = S.quests || {};
+  if(!S.quests[b]) S.quests[b] = ['easy','medium','hard'].map(d => genQuest(b, d));
+  return S.quests[b];
+}
+function questProgress(q){ return q.kind==='gather' ? Math.min(q.need, (S.mats||{})[q.target]||0) : Math.min(q.need, q.have); }
+function questReady(q){ return q.status==='active' && questProgress(q) >= q.need; }
+function anyReady(b){ return board(b).some(questReady); }
+function activeQuests(){ return QUEST_GIVERS.flatMap(b => board(b).filter(q => q.status==='active')); }
+
+/* What a run earned toward quests. Only counted when you walk back into town alive. */
+function runTrack(){ const r = R(); if(!r.track) r.track = {kills:{}, mats:{}, rooms:0, gold0:S.hero.gold, deepest:1}; return r.track; }
+function bankRun(){
+  const r = R(); if(!r) return [];
+  const t = runTrack(), notes = [];
+  t.deepest = Math.max(t.deepest, r.depth);
+  S.mats = S.mats || {};
+  for(const [m,c] of Object.entries(t.mats)){ S.mats[m] = (S.mats[m]||0) + c; notes.push(`+${c} ${MATS[m].name}`); }
+  const gold = Math.max(0, S.hero.gold - t.gold0);
+  for(const q of activeQuests()){
+    const before = q.have;
+    if(q.kind==='kill') q.have += t.kills[q.target] || 0;
+    if(q.kind==='killfam') q.have += Object.entries(t.kills).filter(([k]) => q.target.includes(MONSTERS[k].fam)).reduce((a,[,c]) => a+c, 0);
+    if(q.kind==='rooms') q.have += t.rooms;
+    if(q.kind==='gold') q.have = Math.max(q.have, gold);
+    if(q.kind==='depth') q.have = Math.max(q.have, t.deepest);
+    if(q.have > before && q.kind !== 'gold' && q.kind !== 'depth') notes.push(`${q.label}: ${Math.min(q.need,q.have)}/${q.need}`);
+  }
+  return notes;
+}
+
+/* ---------- records for the Guild Hall ---------- */
+function stats(){ S.stats = S.stats || {runs:0, deaths:0, mostGold:0, mostLost:0, bestHit:0, dealt:0, taken:0, kills:{}, chests:0, rooms:0, quests:0, returns:0}; return S.stats; }
+function trackHit(d){ const s = stats(); s.dealt += d; if(d > s.bestHit) s.bestHit = d; }
+function trackTaken(d){ stats().taken += d; }
+function trackKill(m){
+  const s = stats(); s.kills[m.base] = (s.kills[m.base]||0) + 1;
+  if(S.run){ const t = runTrack(); t.kills[m.base] = (t.kills[m.base]||0) + 1;
+    const mat = matFor(MONSTERS[m.base].fam);
+    if(mat && Math.random() < (m.champion ? 1 : m.rarity==='rare' ? .6 : .35)){ t.mats[mat] = (t.mats[mat]||0) + 1; return mat; } }
+  return null;
+}
+
+/* ---------- views ---------- */
+const TGRID = 68, TTILE = 58;
+const TSHORT = {gate:'Gate', guild:'Guild', shop:'Shop', tavern:'Tavern', yard:'Yard', temple:'Temple', square:'Square', smithy:'Smithy', apothecary:'Potions', bank:'Bank', cartographer:'Maps'};
+function townMapHtml(){
+  const ks = Object.keys(BUILDINGS), pos = k => [10 + BUILDINGS[k].x*TGRID, 14 + BUILDINGS[k].y*TGRID];
+  const W = 10*2 + 4*TGRID + TTILE, H = 14*2 + 2*TGRID + TTILE;
+  let lines = '', tiles = '';
+  for(const road of ROADS){
+    const [a,b] = road.split('|'), [ax,ay] = pos(a), [bx,by] = pos(b);
+    if(ay === by) lines += `<i class="ln h walked" style="left:${Math.min(ax,bx)+TTILE}px;top:${ay+TTILE/2-2}px;width:${TGRID-TTILE}px"></i>`;
+    else lines += `<i class="ln v walked" style="left:${ax+TTILE/2-2}px;top:${Math.min(ay,by)+TTILE}px;height:${TGRID-TTILE}px"></i>`;
+  }
+  for(const k of ks){
+    const B = BUILDINGS[k], [x,y] = pos(k), art = k==='gate' ? OART2.entrance : BART[k];
+    const badge = QUEST_GIVERS.includes(k) && anyReady(k) ? '<span class="tbadge ready">!</span>' : (k==='tavern' || k==='shop' || k==='gate' || k==='guild' || k==='square') ? '' : (board(k).some(q => q.status==='offered') ? '<span class="tbadge">?</span>' : '');
+    tiles += `<button class="room bld ${k==='gate'?'gatebld':''}" style="left:${x}px;top:${y}px;width:${TTILE}px;height:${TTILE}px" data-act="${k==='gate'?'enter':k==='square'?'square':'go'}" data-arg="${k}" aria-label="${B.name}">
+      <img src="${art}" alt=""><span class="rl">${TSHORT[k]}</span>${badge}</button>`;
+  }
+  return `<div class="mapinner" style="width:${W}px;height:${H}px">${lines}${tiles}</div>`;
+}
+function townView(){
+  const h = S.hero, act = activeQuests(), ready = act.filter(questReady).length;
+  return `<div class="dun townmap">
+    <div class="floorbar"><span>Emberhold</span><span>${h.deepest ? `Deepest: floor ${h.deepest}` : 'The last lit town'}</span></div>
+    <div class="roommap" id="townmap">${townMapHtml()}</div>
+    <div class="actions xactions">
+      <div class="tquests">${act.length ? `${act.length} active quest${act.length===1?'':'s'}${ready ? `, <b class="up">${ready} ready to turn in</b>` : ''}. ${act.slice(0,2).map(q => `<br>${q.label}: ${questProgress(q)}/${q.need}`).join('')}` : 'No active quests. Visit the Training Yard, Temple, Apothecary, Smithy, Bank or Cartographer for work.'}</div>
+      <div class="ctx"><button class="btn primary span2" data-act="enter">Enter the dungeon</button></div>
+    </div>
+    <div class="runfoot"><button class="footbtn" data-act="bag">${ICON.bag}<span>Inventory ${h.bag.length}/${bagMax()}</span></button><button class="footbtn" data-act="stats">${ICON.hero}<span>Character${h.points?` <span class="ptsdot">+${h.points}</span>`:''}</span></button></div>
+  </div>`;
+}
+function perkRow(id){
+  const p = PERKS[id], l = perk(id), maxed = l >= p.max, cost = maxed ? 0 : perkCost(id), need = perkRep(id), rep = (S.rep||{})[p.b] || 0;
+  const pips = Array.from({length:p.max}, (_,i) => `<i class="${i<l?'on':''}"></i>`).join('');
+  const lockTxt = !maxed && rep < need ? `<br><span class="sub down">Needs ${need} reputation here (you have ${rep})</span>` : '';
+  return `<div class="row upg"><div class="upgtext"><span class="nm">${p.name}</span> <span class="upips">${pips}</span><br><span class="sub">${p.desc}</span>${l ? `<br><span class="sub now">Now: ${p.now(l)}</span>` : ''}${lockTxt}</div>
+    ${maxed ? '<span class="maxed">Maxed</span>' : `<button class="btn sm" data-act="buyPerk" data-arg="${id}" ${S.hero.gold<cost || rep<need ? 'disabled' : ''}>${priceTag(cost)}</button>`}</div>`;
+}
+function questRow(q){
+  const prog = questProgress(q), pct = Math.round(prog/q.need*100), D = DIFF[q.diff];
+  const btn = q.status==='offered' ? `<button class="btn sm" data-act="acceptQuest" data-arg="${q.b}|${q.id}">Accept</button>`
+    : questReady(q) ? `<button class="btn sm equipnow" data-act="turnIn" data-arg="${q.b}|${q.id}">Turn in</button>`
+    : `<button class="btn sm" data-act="dropQuest" data-arg="${q.b}|${q.id}">Abandon</button>`;
+  return `<div class="row upg quest ${q.diff}"><div class="upgtext"><span class="qd">${D.n}</span> <span class="nm">${q.label}</span>
+    <br><span class="sub">Reward: <span class="price"><span class="coin"></span>${D.gold}</span> and ${D.rep} reputation</span>
+    ${q.status==='active' ? `<div class="qbar"><i style="width:${pct}%"></i><span>${prog}/${q.need}</span></div>` : ''}</div>${btn}</div>`;
+}
+function buildingView(b){
+  const B = BUILDINGS[b], rep = (S.rep||{})[b] || 0;
+  const perks = Object.keys(PERKS).filter(id => PERKS[id].b === b);
+  let extra = '';
+  if(b==='apothecary'){
+    const sl = stapleLvl(), wares = [mk('potion', sl), mk('potion', sl+2, 'greater', null), mk('mending', sl), mk('potion', sl, null, 'cleansing')];
+    extra = `<h3 class="section-h">Remedies</h3><div class="rows">${wares.map(it => `<div class="row r-${it.rarity}"><span class="ico">${ICON[IBASE[it.base].icon]}</span><span style="flex:1"><span class="nm">${itemNameHtml(it)}</span><br><span class="sub">${itemShort(it)}</span></span><button class="btn sm" data-act="buyRemedy" data-arg="${it.base}|${it.ilvl}|${it.pre||''}|${it.suf||''}" ${S.hero.gold<itemValue(it)?'disabled':''}>${priceTag(itemValue(it))}</button></div>`).join('')}</div>`;
+  }
+  if(b==='smithy'){
+    const gear = S.hero.bag.filter(isGear);
+    extra = `<h3 class="section-h">Reforge</h3><p class="sub" style="margin-bottom:6px">Pay to reroll one prefix or suffix on gear in your bag. The new roll can be better or worse.</p>
+      <div class="rows">${gear.length ? gear.map(it => itemRow(it, 'smithy')).join('') : '<p class="empty-note">No gear in your bag to reforge.</p>'}</div>`;
+  }
+  if(b==='cartographer'){
+    extra = `<p class="sub" style="margin-top:8px">“Every map I sell was walked by someone. Most of them came back.”</p>`;
+  }
+  const quests = QUEST_GIVERS.includes(b) ? `<h3 class="section-h">Quests <small class="sub">Reputation here: ${rep}</small></h3>
+    <p class="sub" style="margin-bottom:6px">Progress only counts when you make it back to town alive. Materials go to your pouch.</p>
+    <div class="rows">${board(b).map(questRow).join('')}</div>` : '';
+  return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
+    <div class="bhead"><img src="${BART[b]}" alt=""><div><h1>${B.name}</h1><p class="lead">${B.desc}</p></div></div>
+    ${perks.length ? `<h3 class="section-h">Upgrades <small class="sub">Permanent</small></h3><div class="rows">${perks.map(perkRow).join('')}</div>` : ''}
+    ${extra}${quests}</div>`;
+}
+function guildView(){
+  const s = stats(), h = S.hero, kills = Object.entries(s.kills).sort((a,b) => b[1]-a[1]);
+  const total = kills.reduce((a,[,c]) => a+c, 0), mats = Object.entries(S.mats||{}).filter(([,c]) => c>0);
+  const rec = [['Runs played', s.runs], ['Times died', s.deaths], ['Made it home', s.returns], ['Deepest floor', h.deepest], ['Most gold held', s.mostGold], ['Most gold lost', s.mostLost], ['Biggest hit', s.bestHit], ['Damage dealt', s.dealt], ['Damage taken', s.taken], ['Monsters slain', total], ['Chests opened', s.chests], ['Rooms explored', s.rooms], ['Quests completed', s.quests]];
+  return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
+    <div class="bhead"><img src="${BART.guild}" alt=""><div><h1>Guild Hall</h1><p class="lead">Every deed, written down. These count every run, even the ones you didn’t survive.</p></div></div>
+    <h3 class="section-h">Records</h3>
+    <div class="statgrid">${rec.map(([l,v]) => statBox(l, Number(v||0).toLocaleString())).join('')}</div>
+    <h3 class="section-h">Materials pouch</h3>
+    ${mats.length ? `<p class="statline">${mats.map(([m,c]) => `<span>${MATS[m].name} <b>${c}</b></span>`).join('')}</p>` : '<p class="empty-note">Monsters drop materials for quests. Bring them home to keep them.</p>'}
+    <h3 class="section-h">Monsters slain <small class="sub">${kills.length} of ${Object.keys(MONSTERS).length} species</small></h3>
+    <div class="killgrid">${kills.length ? kills.map(([k,c]) => `<div class="kill"><img src="${ART[k]}" alt=""><span>${MONSTERS[k].name}</span><b>${c.toLocaleString()}</b></div>`).join('') : '<p class="empty-note">Nothing yet. The dungeon is waiting.</p>'}</div>
+    <div class="foot"><button class="linkbtn" data-act="resetAsk">Start a new character</button></div>
+  </div>`;
+}
+
+/* ---------- reforging ---------- */
+function reforgeCost(it){ return Math.max(150, Math.round(itemValue(it)*3/10)*10); }
+function reforge(id, which){
+  const f = findIn(S.hero.bag, id); if(!f) return;
+  const it = f.it, c = reforgeCost(it); if(S.hero.gold < c) return;
+  const pool = Object.values(which==='pre' ? IPRE : ISUF).filter(a => a.min <= it.ilvl && fits(a, it.base));
+  if(!pool.length) return toast('Nothing to reforge into.');
+  S.hero.gold -= c;
+  const old = it[which];
+  it[which] = weighted(pool).id;
+  it.rarity = it.pre && it.suf ? 'rare' : (it.pre || it.suf) ? 'magic' : 'normal';
+  toast(`${old ? (which==='pre'?IPRE:ISUF)[old].name : 'Nothing'} became ${(which==='pre'?IPRE:ISUF)[it[which]].name}.`);
+  save(); render(); openSheet(itemSheet(it, 'smithy'), 'item');
+}
+
+/* Old Guild Hall upgrades are simply retired. */
+function migrateTown(){ S.town = {}; S.townMigrated = true; return 0; }
+
 /* ============ render ============ */
 function render(){
   updateHud();
@@ -1601,6 +1841,7 @@ function render(){
   else if(S.screen==='shop') v.innerHTML = shopView();
   else if(S.screen==='tavern') v.innerHTML = tavernView();
   else if(S.screen==='guild') v.innerHTML = guildView();
+  else if(QUEST_GIVERS.includes(S.screen)) v.innerHTML = buildingView(S.screen);
   else v.innerHTML = townView();
   if(S.run && S.run.phase==='combat') updateCombatUI();
   if(S.run && S.run.phase==='explore') centerMap(false);
@@ -1622,29 +1863,6 @@ function dollHtml(){
   }).join('')}</div>`;
 }
 
-function townView(){
-  const h = S.hero;
-  return `<div class="town">
-    <h1>Emberhold</h1>
-    <p class="lead">The last lit town above the dungeon.</p>
-    <div class="stage-frame gate-frame"><div class="gate">
-      <div class="depth">${h.deepest ? `Your deepest descent: floor ${h.deepest}` : 'No one has seen you go down yet'}</div>
-      <button class="btn primary wide" data-act="enter">Enter the dungeon</button>
-      <p>Every run starts on floor 1. Die down there and you lose your bag and half your gold.</p>
-    </div></div>
-    <div class="tiles">
-      <button class="tile" data-act="go" data-arg="shop">${ICON.shop}<b>Shop</b><span>Buy and sell gear</span></button>
-      <button class="tile" data-act="go" data-arg="tavern">${ICON.tavern}<b>Tavern</b><span>Rest and store items</span></button>
-      <button class="tile" data-act="bag">${ICON.bag}<b>Bag</b><span>${h.bag.length} of ${bagMax()} slots used</span></button>
-      <button class="tile" data-act="stats">${ICON.hero}<b>Hero</b><span>${h.points ? `${h.points} points to spend` : `Stats and attributes`}</span></button>
-      <button class="tile wide" data-act="go" data-arg="guild">${ICON.guild}<b>Guild Hall</b><span>Permanent upgrades for every run</span></button>
-    </div>
-    <h3 class="section-h">Equipped</h3>
-    ${dollHtml()}
-    <p class="sub" style="margin-top:6px">Tap a slot to see the item.</p>
-    <div class="foot"><button class="linkbtn" data-act="resetAsk">Start a new character</button></div>
-  </div>`;
-}
 
 function shopView(){
   const h = S.hero, full = h.bag.length >= bagMax();
@@ -1655,7 +1873,8 @@ function shopView(){
       return `<div class="row"><span class="ico">${ICON[IBASE[b].icon]}</span><span style="flex:1"><span class="nm">${IBASE[b].name}</span><br><span class="sub">Lv ${sl}, ${itemShort(it)}</span></span>
       <button class="btn sm" data-act="buyStaple" data-arg="${b}" ${h.gold<p||full?'disabled':''}>${priceTag(p)}</button></div>`; }).join('');
     const wares = S.shop.items.length ? S.shop.items.map(it => itemRow(it, 'shopBuy', `<button class="btn sm" data-act="buy" data-arg="${it.uid}" ${h.gold<itemValue(it)||full?'disabled':''}>${priceTag(itemValue(it))}</button>`)).join('') : `<p class="empty-note">Sold out. Restock or come back after your next run.</p>`;
-    body = `<h3 class="section-h">Always in stock</h3><div class="rows">${staples}</div>
+    body = `<h3 class="section-h">Upgrades <small class="sub">Permanent</small></h3><div class="rows">${perkRow('pack')}</div>
+      <h3 class="section-h">Always in stock</h3><div class="rows">${staples}</div>
       <h3 class="section-h">Today’s wares</h3><p class="sub" style="margin-bottom:6px">Tap an item to compare it with what you’re wearing.</p><div class="rows">${wares}</div>
       <div class="stack"><button class="btn" data-act="restock" ${h.gold<15?'disabled':''}>Restock wares for ${priceTag(15)}</button></div>
       ${full?'<p class="empty-note">Your bag is full. Sell something first.</p>':''}`;
@@ -1671,28 +1890,6 @@ function shopView(){
     ${body}</div>`;
 }
 
-const UPGRADES = [
-  {id:'bag', name:'Bigger Pack', desc:'+4 bag slots per level.', max:5, cost:[1500,4000,10000,25000,60000], now:l => `Bag holds ${BAG_BASE+4*l} items`},
-  {id:'train', name:'Training Yard', desc:'+2 stat points per level, yours to spend.', max:5, cost:[2000,5000,12000,30000,75000], now:l => `${l*2} bonus points earned`},
-  {id:'temple', name:'Temple Blessing', desc:'+8% max health per level, forever.', max:3, cost:[3000,9000,25000], now:l => `+${l*8}% max health`},
-  {id:'apoth', name:'Apothecary', desc:'Start every run with a free Healing Potion per level.', max:3, cost:[1200,4000,12000], now:l => `${l} free potion${l===1?'':'s'} each run`},
-  {id:'smith', name:'Master Smith', desc:'Shop gear is one item level higher per level.', max:3, cost:[2500,8000,24000], now:l => `Shop gear +${l} levels`},
-  {id:'bank', name:'Bank Vault', desc:'Lose 10% less gold when you die, per level.', max:4, cost:[2000,6000,15000,40000], now:l => `Death costs ${50-l*10}% of your gold`},
-  {id:'belt', name:'Potion Belt', desc:'Potions go on a belt instead of your bag. Level 2 holds scrolls too.', max:2, cost:[7500,20000], now:l => l >= 2 ? 'Belt holds 30 potions and scrolls' : 'Belt holds 15 potions'},
-  {id:'map', name:'Cartographer', desc:'The stairs show on every floor’s map from the start.', max:1, cost:[8000], now:l => l ? 'Stairs always marked' : ''}
-];
-function guildView(){
-  const t = S.town, g = S.hero.gold;
-  const rows = UPGRADES.map(u => {
-    const lv = t[u.id]||0, maxed = lv >= u.max, cost = maxed ? 0 : u.cost[lv];
-    const pips = Array.from({length:u.max}, (_,i) => `<i class="${i<lv?'on':''}"></i>`).join('');
-    return `<div class="row upg"><div class="upgtext"><span class="nm">${u.name}</span> <span class="upips" aria-label="Level ${lv} of ${u.max}">${pips}</span><br><span class="sub">${u.desc}</span>${lv ? `<br><span class="sub now">Now: ${u.now(lv)}</span>` : ''}</div>
-      ${maxed ? '<span class="maxed">Maxed</span>' : `<button class="btn sm" data-act="upgrade" data-arg="${u.id}" ${g<cost?'disabled':''}>${priceTag(cost)}</button>`}</div>`;
-  }).join('');
-  return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
-    <h1>Guild Hall</h1><p class="lead">Upgrades bought here are permanent. They stay with you through every run, even when you die.</p>
-    <div class="rows" style="margin-top:12px">${rows}</div></div>`;
-}
 function restCost(){ return 5 + 3*S.hero.lvl; }
 function tavernView(){
   const h = S.hero, hs = heroStats(), hurt = h.hp < hs.maxhp, c = restCost();
@@ -1743,7 +1940,7 @@ function dungeonView(){
     return `<div class="dun after">${floorBar()}
       <div class="panel after-main">
         <h2>${chest ? 'Treasure' : 'Victory'}</h2><p class="lead">${chest ? (rw.trap || 'You pry the chest open.') : `${article(rw.name)} ${rw.name} falls.`}</p>
-        <p class="gains">${chest ? '' : `<span class="up">+${rw.xp} experience</span>`}<span class="price"><span class="coin"></span>+${rw.gold} gold</span></p>
+        <p class="gains">${chest ? '' : `<span class="up">+${rw.xp} experience</span>`}${rw.mat ? `<span class="up">+1 ${MATS[rw.mat].name}</span>` : ''}<span class="price"><span class="coin"></span>+${rw.gold} gold</span></p>
         ${n ? `<h3 class="section-h">Loot</h3><p class="sub" style="margin-bottom:6px">${n} item${n===1?'':'s'} ${chest?'inside':'dropped'}. Tap one to compare it with your gear.</p><div class="rows">${lootList}</div>`
             : `<div class="noloot">${r.tookAll ? 'Nothing left on the ground.' : 'No loot this time.'}</div>`}
       </div>
@@ -1774,7 +1971,7 @@ function dungeonView(){
     return `<div class="dun"><div class="panel">
       <h2>You died</h2><p class="lead">Slain on floor ${r.depth} by ${article(r.killer).toLowerCase()} ${r.killer}.</p>
       <div class="rewards"><div class="reward"><b>${r.kills}</b><span>Monsters slain</span></div><div class="reward"><b>${S.hero.deepest}</b><span>Deepest floor</span></div></div>
-      <p class="empty-note">You lost ${r.lostItems} item${r.lostItems===1?'':'s'} from your bag and ${r.lostGold} gold. Your equipped gear and stash are safe.</p>
+      <p class="empty-note">You lost ${r.lostItems} item${r.lostItems===1?'':'s'} from your bag and ${r.lostGold} gold. Your equipped gear and stash are safe. Quest progress and materials from this run are lost.</p>
       <div class="stack"><button class="btn primary" data-act="deadToTown">Wake up in Emberhold</button></div>
     </div></div>`;
   }
@@ -1959,6 +2156,9 @@ function itemSheet(it, ctx){
   } else if(ctx==='merchant'){
     const p = merchantPrice(it);
     acts.push(`<button class="btn primary" data-act="mbuy" data-arg="${it.uid}" ${h.gold<p||full?'disabled':''}>Buy for ${priceTag(p)}</button>`, backBtn);
+  } else if(ctx==='smithy'){
+    const c = reforgeCost(it);
+    acts.push(`<button class="btn primary" data-act="reforge" data-arg="${it.uid}|pre" ${h.gold<c?'disabled':''}>Reforge prefix ${priceTag(c)}</button>`, `<button class="btn primary" data-act="reforge" data-arg="${it.uid}|suf" ${h.gold<c?'disabled':''}>Reforge suffix ${priceTag(c)}</button>`, backBtn);
   } else if(ctx==='shopBuy'){
     const p = itemValue(it);
     acts.push(`<button class="btn primary" data-act="buy" data-arg="${it.uid}" ${h.gold<p||full?'disabled':''}>Buy for ${priceTag(p)}</button>`, backBtn);
@@ -1970,7 +2170,7 @@ function itemSheet(it, ctx){
     acts.push(`<button class="btn primary" data-act="store" data-arg="${it.uid}">Store in stash</button>`, backBtn);
   } else acts.push(backBtn);
 
-  const title = {merchant:'Merchant’s wares', loot:'On the ground', bag:'In your bag', equipped:'Equipped', shopBuy:'For sale', shopSell:'In your bag', stash:'In your stash', tavernBag:'In your bag'}[ctx] || 'Item';
+  const title = {smithy:'On the anvil', merchant:'Merchant’s wares', loot:'On the ground', bag:'In your bag', equipped:'Equipped', shopBuy:'For sale', shopSell:'In your bag', stash:'In your stash', tavernBag:'In your bag'}[ctx] || 'Item';
   let body;
   if(gear && ctx!=='equipped'){
     const cur = h.equip[b.kind];
@@ -2230,7 +2430,7 @@ function genFloor(depth){
 }
 
 /* ---------- what you can see ---------- */
-const charted = (fl, k) => !!(S.town && S.town.map && fl.rooms[k] && fl.rooms[k].t==='stairs');
+const charted = (fl, k) => !!(perk('charts') && fl.rooms[k] && fl.rooms[k].t==='stairs');
 function shown(fl, k){ return fl.visited[k] || charted(fl, k) || neighbors(fl, k).some(n => fl.visited[n]); }
 function typeKnown(fl, k){ return fl.visited[k] || charted(fl, k) || (fl.suf === 'echoes' && shown(fl, k)); }
 function pending(rm){ return (rm.t==='mon' && !rm.done) || (rm.t==='trap' && !rm.done); }
@@ -2337,6 +2537,7 @@ async function goRoom(k){
   const path = []; for(let n = k; n && n !== fl.cur; n = par[n]) path.unshift(n);
   moving = true; r.msg = null;
   for(const step of path){
+    if(!fl.visited[step]){ stats().rooms++; runTrack().rooms++; }
     fl.prev = fl.cur; fl.cur = step; fl.visited[step] = 1;
     updateExplore(true);
     await sleep(path.length > 1 ? 160 : 60);
@@ -2382,7 +2583,7 @@ function dash(){
 }
 function openChest(){
   const r = R(), fl = r.floor, rm = fl.rooms[fl.cur], hs = heroStats(); if(rm.t!=='chest' || rm.done) return;
-  rm.done = true;
+  rm.done = true; stats().chests++;
   if(r.depth >= 3 && Math.random() < .1){
     const m = genMonster(Math.max(r.depth, 6), false); m.base = 'mimic'; m.lvl = r.depth + 1; m.hp = monStats(m).hp;
     toast('The chest grows teeth. It’s a Mimic!');
@@ -2450,9 +2651,7 @@ function enterDungeon(){
   S.run = {depth:1, mon:null, pg:0, mg:0, log:[], pb:{}, mb:{}, phase:'explore', loot:[], kills:0};
   newFloor(1);
   S.hero.deepest = Math.max(S.hero.deepest, 1);
-  const ap = (S.town && S.town.apoth) || 0; let gave = 0;
-  for(let i=0; i<ap; i++){ const pot = mk('potion', stapleLvl()); if(roomFor(pot)){ addToBag(pot); gave++; } }
-  if(gave) setTimeout(() => toast(`The apothecary slips you ${gave} Healing Potion${gave===1?'':'s'}.`), 1600);
+  stats().runs++; runTrack();
   save(); render(); $('#view').scrollTop = 0;
   toast(`Floor 1: ${floorName(S.run.floor, 1)}`);
 }
@@ -2520,7 +2719,7 @@ function playerAttack(){
     dmg += hs.fire;
     if(ms.hide) dmg = Math.max(1, Math.round(dmg*ms.hide));
     dmg = absorb(dmg);
-    m.hp -= dmg;
+    m.hp -= dmg; trackHit(dmg);
     if(dmg>0){ floatNum(dmg,'mon',crit?'crit':''); pulse($('#monWrap'),'hit'); }
     log(crit ? `<b>Critical hit!</b> You strike ${short(m)} for ${dmg}.` : `You hit ${short(m)} for ${dmg}.`);
     if(hs.lifesteal && dmg>0){ const v = Math.max(1, Math.round(dmg*hs.lifesteal/100)); S.hero.hp = Math.min(hs.maxhp, S.hero.hp+v); floatNum('+'+v,'hero','heal'); }
@@ -2556,7 +2755,7 @@ function monAttack(mult=1, ignoreArmor=false){
   if(r.pb.defend) dmg = Math.max(1, Math.round(dmg*.5));
   const blocked = Math.random()*100 < hs.block;
   if(blocked) dmg = Math.max(0, Math.round(dmg*.3));
-  S.hero.hp -= dmg; floatNum(blocked ? `Block ${dmg}` : MINUS+dmg,'hero',crit?'crit':(blocked?'miss':'')); if(dmg>0) ouch();
+  S.hero.hp -= dmg; trackTaken(dmg); floatNum(blocked ? `Block ${dmg}` : MINUS+dmg,'hero',crit?'crit':(blocked?'miss':'')); if(dmg>0) ouch();
   log(blocked ? `You block ${short(m)}, taking only ${dmg}.` : `${cap(short(m))} ${crit?'<b>crits</b>':'hits'} you for ${dmg}.`);
   if(ms.lifesteal && dmg>0){ const v = Math.max(1, Math.round(dmg*ms.lifesteal/100)); m.hp = Math.min(ms.hp, m.hp+v); floatNum('+'+v,'mon','heal'); }
   if(ms.venom && dmg>0) r.pb.poison = {t:ms.necro?5:3, d:Math.max(1, Math.round(ms.atk*.2*(ms.venom2?2:1)))};
@@ -2683,7 +2882,7 @@ function victory(){
   const gold = Math.max(1, Math.round(ms.gold*rand(.8,1.25)*(1+hs.gold/100))) + (m.stolen||0);
   if(m.stolen) toast(`You got back the ${m.stolen} gold it stole.`);
   S.hero.gold += gold;
-  r.reward = {kind:'kill', xp, gold, name:monName(m)};
+  r.reward = {kind:'kill', xp, gold, name:monName(m), mat:trackKill(m)};
   if(r.monKey && r.floor && r.floor.rooms[r.monKey]){ const rm = r.floor.rooms[r.monKey]; rm.done = true; delete rm.m; r.monKey = null; }
   r.tookAll = false;
   const items = [];
@@ -2717,7 +2916,8 @@ function onDeath(){
   const r = R(); if(r.phase==='dead') return;
   r.phase = 'dead'; S.hero.hp = 0; updateHud();
   r.killer = monName(r.mon);
-  r.lostItems = S.hero.bag.length; r.lostGold = Math.floor(S.hero.gold*(.5 - .1*((S.town && S.town.bank) || 0)));
+  r.lostItems = S.hero.bag.length; r.lostGold = Math.floor(S.hero.gold*(.5 - .05*perk('vault')));
+  { const st = stats(); st.deaths++; st.mostLost = Math.max(st.mostLost, r.lostGold); }
   r.lostItems += beltCount(); S.hero.bag = []; S.hero.belt = []; S.hero.gold -= r.lostGold;
   save();
   busy = true;
@@ -2790,7 +2990,7 @@ function readScroll(it, s, inCombat){
       let d = Math.round(s.dmg*mult*(1+hs.spell/100));
       if(s.holy && MONSTERS[m.base].fam==='undead') d *= 2;
       if(backfire){ const bd = Math.round(d*.5); h.hp = Math.max(1, h.hp - bd); floatNum(MINUS+bd,'hero'); ouch(); out.push(`it backfires for ${bd}`); }
-      else { d = absorb(Math.round(d*(monStats(m).hide||1))); m.hp -= d; total += d; if(d>0){ floatNum(d,'mon','crit'); pulse($('#monWrap'),'hit'); } }
+      else { d = absorb(Math.round(d*(monStats(m).hide||1))); m.hp -= d; total += d; trackHit(d); if(d>0){ floatNum(d,'mon','crit'); pulse($('#monWrap'),'hit'); } }
     }
     if(s.healp){ const v = Math.min(hs.maxhp - h.hp, Math.round(hs.maxhp*s.healp/100*mult)); h.hp += v; floatNum('+'+v,'hero','heal'); if(rep===0) out.push(`you heal ${v}`); }
   }
@@ -2892,6 +3092,7 @@ const ACT = {
   next: () => nextStep(),
   descend: () => { const r = R(); if(moving) return; closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
     const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
+    runTrack().deepest = Math.max(runTrack().deepest, r.depth);
     newFloor(r.depth); save(); render(); $('#view').scrollTop = 0; toast(`Floor ${r.depth}: ${floorName(r.floor, r.depth)}`); },
   goRoom: a => goRoom(a),
   fightRoom: () => { const r = R(); if(r && r.floor.rooms[r.floor.cur].t==='mon') startEncounter(r.floor.cur); },
@@ -2904,7 +3105,7 @@ const ACT = {
   trade: () => { const o = merchantRoom(); if(o) openSheet(merchantSheet(o), 'merchant'); },
   floorInfo: () => openSheet(floorInfoSheet()),
   mbuy: a => { const o = merchantRoom(); if(!o) return; const f = findIn(o.items, a); if(!f) return; const p = merchantPrice(f.it); if(S.hero.gold < p || !roomFor(f.it)) return; S.hero.gold -= p; o.items.splice(f.i,1); addToBag(f.it); toast(`Bought ${itemName(f.it)}.`); save(); updateHud(); openSheet(merchantSheet(o),'merchant'); },
-  toTown: () => goTown('You return to Emberhold. Sell your loot at the shop.'),
+  toTown: () => { const notes = bankRun(); stats().returns++; goTown(notes.length ? `Home safe. ${notes.slice(0,3).join('. ')}.` : 'You return to Emberhold. Sell your loot at the shop.'); },
   deadToTown: () => { S.hero.hp = Math.round(heroStats().maxhp*.5); goTown(); },
   shopTab: a => { shopTab = a; render(); },
   buy: a => { const f = findIn(S.shop.items, a); if(!f) return; const p = itemValue(f.it); if(S.hero.gold < p || !roomFor(f.it)) return; S.hero.gold -= p; S.shop.items.splice(f.i,1); addToBag(f.it); closeSheet(); toast(`Bought ${itemName(f.it)}.`); save(); render(); },
@@ -2917,13 +3118,23 @@ const ACT = {
   store: a => { const f = findIn(S.hero.bag, a); if(!f) return; S.hero.bag.splice(f.i,1); S.stash.push(f.it); closeSheet(); save(); render(); },
   retrieve: a => { const f = findIn(S.stash, a); if(!f || !roomFor(f.it)) return; S.stash.splice(f.i,1); addToBag(f.it); closeSheet(); save(); render(); },
   resetAsk: () => openSheet(`<div class="grab"></div><h3 class="sheet-title">Start a new character?</h3><p class="lead" style="margin-top:8px">This erases your level, gold, gear and stash.</p><div class="sheet-actions"><button class="btn" data-act="closeSheet">Keep playing</button><button class="btn primary" data-act="reset">Start over</button></div>`),
-  upgrade: a => { const u = UPGRADES.find(x => x.id===a); if(!u) return; const t = S.town, lv = t[a]||0; if(lv >= u.max) return; const c = u.cost[lv]; if(S.hero.gold < c) return;
-    S.hero.gold -= c; t[a] = lv+1;
-    if(a==='train') S.hero.points = (S.hero.points||0) + 2;
-    if(a==='temple') S.hero.hp = Math.min(heroStats().maxhp, S.hero.hp + Math.round(heroStats().maxhp*.08));
-    if(a==='smith') S.shop = genShop();
-    if(a==='belt'){ S.hero.belt = S.hero.belt || []; for(const it of S.hero.bag.filter(x => beltTakes(x))){ if(beltCount() + (it.qty||1) <= beltCap()){ S.hero.bag.splice(S.hero.bag.indexOf(it),1); addToBag(it); } } }
-    toast(`${u.name} upgraded to level ${t[a]}.`); save(); render(); },
+  buyPerk: a => { const p = PERKS[a]; if(!p) return; const l = perk(a); if(l >= p.max) return; const c = perkCost(a), need = perkRep(a);
+    if(S.hero.gold < c || ((S.rep||{})[p.b]||0) < need) return;
+    S.hero.gold -= c; S.perks = S.perks || {}; S.perks[a] = l+1;
+    if(a==='drills') S.hero.points = (S.hero.points||0) + 1;
+    if(a==='favor') S.shop = genShop();
+    if(a==='pouch' || a==='holster'){ S.hero.belt = S.hero.belt || []; for(const it of S.hero.bag.filter(x => beltTakes(x))){ if(beltCount() + (it.qty||1) <= beltCap()){ S.hero.bag.splice(S.hero.bag.indexOf(it),1); addToBag(it); } } }
+    toast(`${p.name} is now level ${l+1}.`); save(); render(); },
+  acceptQuest: a => { const [b,id] = a.split('|'); const q = board(b).find(x => x.id===id); if(!q || q.status!=='offered') return; q.status = 'active'; q.have = 0; toast('Quest accepted. Progress counts when you make it back alive.'); save(); render(); },
+  dropQuest: a => { const [b,id] = a.split('|'); const qs = board(b), i = qs.findIndex(x => x.id===id); if(i < 0) return; qs[i] = genQuest(b, qs[i].diff); save(); render(); },
+  turnIn: a => { const [b,id] = a.split('|'); const qs = board(b), i = qs.findIndex(x => x.id===id), q = qs[i]; if(!q || !questReady(q)) return;
+    if(q.kind==='gather') S.mats[q.target] -= q.need;
+    const D = DIFF[q.diff]; S.hero.gold += D.gold; S.rep = S.rep || {}; S.rep[b] = (S.rep[b]||0) + D.rep; stats().quests++;
+    qs[i] = genQuest(b, q.diff); toast(`Quest complete! +${D.gold} gold and +${D.rep} reputation.`); save(); render(); },
+  buyRemedy: a => { const [base,lv,pre,suf] = a.split('|'); const it = mk(base, +lv, pre||null, suf||null), p = itemValue(it);
+    if(S.hero.gold < p) return; if(!roomFor(it)) return toast('No room for it.'); S.hero.gold -= p; addToBag(it); toast(`Bought ${itemName(it)}.`); save(); render(); },
+  reforge: a => { const [id,w] = a.split('|'); reforge(id, w); },
+  square: () => toast('You sit by the fountain a while. It’s quiet up here.'),
   reset: () => { closeSheet(); newGame(); save(); render(); toast('A new adventurer arrives in Emberhold.'); }
 };
 document.addEventListener('click', e => {
