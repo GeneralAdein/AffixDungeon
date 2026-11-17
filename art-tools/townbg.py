@@ -52,6 +52,11 @@ def tree(cx,cy,r=7):
                     if rng.random()<.12: shade=max(0,shade-1)
                     img[y,x]=[hx('#0e2414'),hx('#163a1e'),hx('#22522a')][shade]
 for (x,y,r) in [(2,72,5),(178,74,5),(2,138,5),(178,136,5),(2,202,5),(178,204,5),(14,282,8),(166,282,8),(40,284,6),(140,284,6)]: tree(x,y,r)
+# a small garden fills the empty middle lot
+for y in range(84,126):
+    for x in range(70,110):
+        if (x-90)**2/400+(y-105)**2/400<=1 and rng.random()<.5: img[y,x]=hx(rng.choice(['#2a5a2a','#3a6a30','#d84a5a','#e8c040','#c070ff','#f0f0e0']))
+for (x,y,r) in [(76,92,7),(104,92,7),(90,112,8)]: tree(x,y,r)
 # flowers
 for _ in range(120):
     x,y=rng.integers(0,W),rng.integers(16,H)
