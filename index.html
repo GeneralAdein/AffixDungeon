@@ -1928,7 +1928,6 @@ function townView(){
   }
   { const p = ISO.pos.square; for(let i=0;i<5;i++) html += `<i class="spark" style="left:${pctX(p.x-8+i*4)};top:${pctY(p.y-14+(i%2)*4)};animation-delay:${i*.45}s"></i>`; }
   { const p = ISO.pos.gate; for(let i=0;i<4;i++) html += `<i class="ember" style="left:${pctX(p.x-6+i*4)};top:${pctY(p.y-2)};animation-delay:${i*.7}s"></i>`; }
-  html += `<div class="thero" id="townHero" style="left:${pctX(hp.x-8)};top:${pctY(hp.y-15)}"><img src="${HERO_ART}" alt="You"></div>`;
   return `<div class="dun townmap">
     <div class="floorbar"><span>Emberhold</span><span>${h.deepest ? `Deepest: floor ${h.deepest}` : 'The last lit town'}</span></div>
     <div class="townwrap" id="townmap"><div class="townscene" style="background-image:url(${TOWN_BG})">${html}</div></div>
@@ -1939,6 +1938,11 @@ function centerTown(){}
 /* Walk the roads: along your street, turn at the corner of the target's block, then up to its door. */
 let townMoving = false;
 async function townGo(k){
+  if(k==='gate') return enterDungeon();
+  if(k==='square') return toast('You sit by the fountain a while. It’s quiet up here.');
+  return ACT.go(k);
+}
+async function townWalkUnused(k){
   if(townMoving) return;
   const from = heroAt(), to = doorPoint(k), el = $('#townHero');
   const A = ISO.pos[from.k] || ISO.pos.square, B = ISO.pos[k];
