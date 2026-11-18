@@ -2188,6 +2188,8 @@ function predictOrder(n){
 }
 function updateCombatUI(){
   const r = R(); if(!r || r.phase!=='combat') return;
+  // health is always a whole number
+  if(r.mon) r.mon.hp = Math.ceil(r.mon.hp); S.hero.hp = Math.ceil(S.hero.hp);
   updateHud();
   const m = r.mon, ms = monStats(m);
   const f = $('#monHpFill'); if(!f) return;
@@ -2885,8 +2887,8 @@ function playerTurnStart(){
 }
 function absorb(dmg){
   const r = R();
-  if(r.mb.shield){ const a = Math.min(r.mb.shield, dmg); r.mb.shield -= a; dmg -= a; if(r.mb.shield <= 0) delete r.mb.shield; if(a) floatNum(`${a} blocked`,'mon','miss'); }
-  return dmg;
+  if(r.mb.shield){ const a = Math.ceil(Math.min(r.mb.shield, dmg)); r.mb.shield -= a; dmg -= a; if(r.mb.shield <= 0) delete r.mb.shield; if(a) floatNum(`${a} blocked`,'mon','miss'); }
+  return Math.max(0, Math.ceil(dmg));
 }
 function endPlayerAction(){
   const r = R(); r.pg -= 100;
@@ -2902,7 +2904,7 @@ function playerAttack(){
   else{
     let dmg = calcDmg(heroAtk(), hs.magic ? 0 : monDef());
     const crit = Math.random()*100 < hs.crit; if(crit) dmg = Math.round(dmg*1.75);
-    dmg += hs.fire;
+    dmg = Math.ceil(dmg + hs.fire);
     if(ms.hide) dmg = Math.max(1, Math.round(dmg*ms.hide));
     dmg = absorb(dmg);
     m.hp -= dmg; trackHit(dmg);
@@ -2941,7 +2943,7 @@ function monAttack(mult=1, ignoreArmor=false){
   if(r.pb.defend) dmg = Math.max(1, Math.round(dmg*.5));
   const blocked = Math.random()*100 < hs.block;
   if(blocked) dmg = Math.max(0, Math.round(dmg*.3));
-  S.hero.hp -= dmg; trackTaken(dmg); floatNum(blocked ? `Block ${dmg}` : MINUS+dmg,'hero',crit?'crit':(blocked?'miss':'')); if(dmg>0) ouch();
+  dmg = Math.ceil(dmg); S.hero.hp -= dmg; trackTaken(dmg); floatNum(blocked ? `Block ${dmg}` : MINUS+dmg,'hero',crit?'crit':(blocked?'miss':'')); if(dmg>0) ouch();
   log(blocked ? `You block ${short(m)}, taking only ${dmg}.` : `${cap(short(m))} ${crit?'<b>crits</b>':'hits'} you for ${dmg}.`);
   if(ms.lifesteal && dmg>0){ const v = Math.max(1, Math.round(dmg*ms.lifesteal/100)); m.hp = Math.min(ms.hp, m.hp+v); floatNum('+'+v,'mon','heal'); }
   if(ms.venom && dmg>0) r.pb.poison = {t:ms.necro?5:3, d:Math.max(1, Math.round(ms.atk*.2*(ms.venom2?2:1)))};
