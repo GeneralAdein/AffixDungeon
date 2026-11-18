@@ -1,8 +1,9 @@
 from hk import *
 import base64, io, json
 
-def bust(skin, clothes, mood='calm', eye='#2a3a4a', jaw=1.0, rx=10.5, ry=12, hx=24, hy=21, brow='#2a1a10'):
+def bust(skin, clothes, mood='calm', eye='#2a3a4a', jaw=1.0, rx=10.5, ry=12, hx=24, hy=21, brow='#2a1a10', behind=None):
     f = Fig()
+    if behind: behind(f)
     S = P[skin] if isinstance(skin, str) else skin
     f.add(f.Pp([(2, 48), (46, 48), (42, 38), (32, 34), (16, 34), (6, 38)]), clothes, soft=1.2)          # shoulders
     f.add(f.C([(hx, hy + 8), (hx, 36)], 4.4), S)                                                         # neck
@@ -137,15 +138,23 @@ def pell():
     return f
 
 def ysolde():
-    f = bust('skin', 'forest')
-    f.add(f.C([(10, 36), (38, 48)], 1.2), 'leather')
-    f.add(f.Pp([(12, 18), (8, 44), (14, 38), (16, 22)]) | f.Pp([(36, 18), (40, 44), (34, 38), (32, 22)]), 'red', bias=.02)   # long hair
-    f.add(f.E(24, 12, 11.4, 5) & (yy < f.T(0, 15)[1]), 'red')
-    f.add(f.Pp([(10, 12), (38, 12), (34, 4), (14, 4)]), 'brown', soft=1); f.add(f.E(24, 12, 16, 2.2), 'brown', bias=-.05)     # wide hat
+    def hair_back(f):
+        # long hair falling behind the head and over the shoulders
+        f.add(f.Pp([(12, 12), (36, 12), (39, 30), (37, 44), (30, 40), (18, 40), (11, 44), (9, 30)]), 'red', soft=1.2, bias=-.08)
+        for x in (13, 17, 31, 35): f.mask(f.C([(x, 22), (x - .5, 40)], .3), P['red'][1])
+    f = bust('skinlt', 'forest', jaw=.9, rx=9.8, ry=11.6, behind=hair_back)
+    f.add(f.C([(10, 37), (38, 48)], 1.2), 'leather')                                                         # map satchel strap
+    f.add(f.E(24, 12.4, 10.4, 5.4) & (yy < f.T(0, 15.5)[1]), 'red', bias=.05)                                # hairline
+    f.add(f.Pp([(14.5, 11), (21, 11), (18, 17.5), (15, 18.5)]), 'red', bias=.08)                              # side-swept fringe
+    f.add(f.Pp([(10, 12), (38, 12), (34, 4), (14, 4)]), 'brown', soft=1); f.add(f.E(24, 12, 16, 2.2), 'brown', bias=-.05)   # wide hat
+    f.mask(f.Pp([(14.4, 9.6), (33.6, 9.6), (33.6, 10.8), (14.4, 10.8)]), '#3a2414')                          # hat band
     f.add(f.C([(32, 7), (40, 0), (45, 1)], 1.6, .5), 'crimson', bias=.1)                                      # feather
-    eyes(f, '#2a6a4a', 'calm', brow='#7a2a10'); nose(f)
-    for p in [(18, 25), (20, 25.6), (28, 25.6), (30, 25)]: f.px([p], '#8a4a2a')
-    mouth(f, 'smirk', 29.6, 3)
+    eyes(f, '#2a7a5a', 'kind', brow='#9a3a1a')
+    for sx in (-1, 1): f.mask(f.C([(24 + sx * 5.5 - 2.6, 19.4), (24 + sx * 5.5 + 2.6 * sx, 18.8)], .35), '#1a0e0a')   # lashes
+    nose(f, .85)
+    for p in [(18, 25), (20.5, 25.5), (27.5, 25.5), (30, 25)]: f.px([p], '#d8946e')                         # freckles
+    f.mask(f.C([(21.4, 29.2), (24, 30.4), (26.6, 29.2)], .55), '#b03a3a'); f.px([(24, 28.8)], '#c85a50')        # smiling lips
+    f.mask(f.E(13.6, 23.4, .8, .8) | f.E(34.4, 23.4, .8, .8), GOLD)                                           # earrings
     return f
 
 ALL = {'tobin':tobin, 'hanna':hanna, 'aldric':aldric, 'brakka':brakka, 'maren':maren, 'wenna':wenna, 'durik':durik, 'pell':pell, 'ysolde':ysolde}
