@@ -1527,6 +1527,8 @@ function heroSpd(){ const pb = pbuffs(), wet = S.run && S.run.floor && S.run.flo
 function monSpd(){ const r = R(); return Math.max(25, monStats(r.mon).spd * (r.mb.slow ? .6 : 1)); }
 function monDef(){ const r = R(); return monStats(r.mon).def * (r.mb.harden ? 1.6 : 1) * (r.mb.sunder ? .5 : 1); }
 function calcDmg(atk, def){ return Math.max(1, Math.round(atk*rand(.85,1.15) * 30/(30+Math.max(0,def)))); }
+/* Monsters hitting you always round down. */
+function calcDmgDown(atk, def){ return Math.max(1, Math.floor(atk*rand(.85,1.15) * 30/(30+Math.max(0,def)))); }
 const xpNeed = l => Math.round(25*Math.pow(l,1.55));
 
 /* ============ names ============ */
@@ -2912,7 +2914,7 @@ function playerAttack(){
     log(crit ? `<b>Critical hit!</b> You strike ${short(m)} for ${dmg}.` : `You hit ${short(m)} for ${dmg}.`);
     if(hs.lifesteal && dmg>0){ const v = Math.max(1, Math.round(dmg*hs.lifesteal/100)); S.hero.hp = Math.min(hs.maxhp, S.hero.hp+v); floatNum('+'+v,'hero','heal'); }
     if(hs.venom) r.mb.poison = {t:3, d:Math.max(1, Math.round(hs.atk*.2))};
-    if(ms.thorns && dmg>0){ const t = Math.max(1, Math.round(dmg*ms.thorns/100)); S.hero.hp -= t; floatNum(MINUS+t,'hero'); log(`Thorns cut you for ${t}.`); }
+    if(ms.thorns && dmg>0){ const t = Math.max(1, Math.floor(dmg*ms.thorns/100)); S.hero.hp -= t; floatNum(MINUS+t,'hero'); log(`Thorns cut you for ${t}.`); }
   }
   endPlayerAction();
 }
@@ -2938,17 +2940,17 @@ function monAttack(mult=1, ignoreArmor=false){
   if(r.mb.blind && Math.random() < .35){ log(`${cap(short(m))} swings blindly and misses.`); floatNum('Miss','hero','miss'); return 0; }
   if(Math.random()*100 < hs.dodge - ms.acc){ log(`You dodge ${short(m)}.`); floatNum('Dodged','hero','miss'); return 0; }
   if(ms.execute && S.hero.hp < hs.maxhp*.3){ mult *= 2; log(`${cap(short(m))} sees you falter.`); }
-  let dmg = calcDmg(ms.atk*mult*(r.mb.rally?1.3:1)*(r.mb.weak?.7:1), (ignoreArmor||ms.magichit) ? 0 : heroDef()*(ms.pierce?.5:1));
-  const crit = Math.random()*100 < ms.crit; if(crit) dmg = Math.round(dmg*1.5);
-  if(r.pb.defend) dmg = Math.max(1, Math.round(dmg*.5));
+  let dmg = calcDmgDown(ms.atk*mult*(r.mb.rally?1.3:1)*(r.mb.weak?.7:1), (ignoreArmor||ms.magichit) ? 0 : heroDef()*(ms.pierce?.5:1));
+  const crit = Math.random()*100 < ms.crit; if(crit) dmg = Math.floor(dmg*1.5);
+  if(r.pb.defend) dmg = Math.max(1, Math.floor(dmg*.5));
   const blocked = Math.random()*100 < hs.block;
-  if(blocked) dmg = Math.max(0, Math.round(dmg*.3));
-  dmg = Math.ceil(dmg); S.hero.hp -= dmg; trackTaken(dmg); floatNum(blocked ? `Block ${dmg}` : MINUS+dmg,'hero',crit?'crit':(blocked?'miss':'')); if(dmg>0) ouch();
+  if(blocked) dmg = Math.max(0, Math.floor(dmg*.3));
+  dmg = dmg > 0 ? Math.max(1, Math.floor(dmg)) : 0; S.hero.hp -= dmg; trackTaken(dmg); floatNum(blocked ? `Block ${dmg}` : MINUS+dmg,'hero',crit?'crit':(blocked?'miss':'')); if(dmg>0) ouch();
   log(blocked ? `You block ${short(m)}, taking only ${dmg}.` : `${cap(short(m))} ${crit?'<b>crits</b>':'hits'} you for ${dmg}.`);
   if(ms.lifesteal && dmg>0){ const v = Math.max(1, Math.round(dmg*ms.lifesteal/100)); m.hp = Math.min(ms.hp, m.hp+v); floatNum('+'+v,'mon','heal'); }
-  if(ms.venom && dmg>0) r.pb.poison = {t:ms.necro?5:3, d:Math.max(1, Math.round(ms.atk*.2*(ms.venom2?2:1)))};
+  if(ms.venom && dmg>0) r.pb.poison = {t:ms.necro?5:3, d:Math.max(1, Math.floor(ms.atk*.2*(ms.venom2?2:1)))};
   if(ms.flash && dmg>0 && Math.random() < .5) r.pb.blind = {t:2};
-  if(ms.burn && dmg>0) r.pb.burn = {t:3, d:Math.max(1, Math.round(ms.atk*.2))};
+  if(ms.burn && dmg>0) r.pb.burn = {t:3, d:Math.max(1, Math.floor(ms.atk*.2))};
   if(ms.hexhit && dmg>0 && Math.random() < .4) r.pb.weak = {t:2};
   if(ms.steal && dmg>0 && S.hero.gold>0){ const g = Math.min(S.hero.gold, 2+m.lvl*2); S.hero.gold -= g; m.stolen = (m.stolen||0)+g; floatNum(`${MINUS}${g} gold`,'hero','miss'); }
   if(ms.chill && dmg>0) r.pb.slow = {t:2};
@@ -2985,10 +2987,10 @@ function useAbility(id){
   const r = R(), m = r.mon, ms = monStats(m), A = ABIL[id].name, who = cap(short(m));
   const say = t => log(`${who} uses <b>${A}</b>. ${t}`);
   switch(id){
-    case 'poison_bite': { const d = monAttack(.8); if(d>0){ r.pb.poison = {t:3, d:Math.max(1, Math.round(ms.atk*.25))}; say('You’re poisoned.'); } break; }
+    case 'poison_bite': { const d = monAttack(.8); if(d>0){ r.pb.poison = {t:3, d:Math.max(1, Math.floor(ms.atk*.25))}; say('You’re poisoned.'); } break; }
     case 'web': r.pb.slow = {t:2}; say('You’re slowed.'); break;
     case 'screech': r.pb.slow = {t:3}; say('You’re slowed.'); break;
-    case 'spore_cloud': r.pb.poison = {t:4, d:Math.max(1, Math.round(ms.atk*.25))}; say('You’re poisoned.'); break;
+    case 'spore_cloud': r.pb.poison = {t:4, d:Math.max(1, Math.floor(ms.atk*.25))}; say('You’re poisoned.'); break;
     case 'harden': r.mb.harden = {t:3}; say('Its armor rises.'); break;
     case 'mend': { const v = Math.round(ms.hp*.2); m.hp = Math.min(ms.hp, m.hp+v); floatNum('+'+v,'mon','heal'); say(`It heals ${v}.`); break; }
     case 'barrier': r.mb.shield = Math.round(ms.hp*.25); say('A shield forms around it.'); break;
@@ -2998,7 +3000,7 @@ function useAbility(id){
     case 'drain': { const d = monAttack(1); if(d>0){ m.hp = Math.min(ms.hp, m.hp+d); floatNum('+'+d,'mon','heal'); say(`It drains ${d} health.`); } break; }
     case 'charge': monAttack(1.7); say(''); break;
     case 'maul': monAttack(1.5); say(''); break;
-    case 'sting': { const d = monAttack(1); if(d>0){ r.pb.poison = {t:2, d:Math.max(1, Math.round(ms.atk*.25))}; say('You’re poisoned.'); } else say(''); break; }
+    case 'sting': { const d = monAttack(1); if(d>0){ r.pb.poison = {t:2, d:Math.max(1, Math.floor(ms.atk*.25))}; say('You’re poisoned.'); } else say(''); break; }
     case 'buzz': r.pb.slow = {t:2}; say('You’re slowed.'); break;
     case 'dust': r.pb.blind = {t:2}; say('You’re blinded.'); break;
     case 'camouflage': r.mb.camo = {t:2}; say('It’s hard to see.'); break;
@@ -3030,8 +3032,8 @@ function useAbility(id){
       const el = MONSTERS[m.base].el || 'fire', fx = BREATH[el];
       const d = monAttack(1.6, true);
       if(d>0){ const k = fx[0];
-        if(k==='burn') r.pb.burn = {t:3, d:Math.max(1, Math.round(ms.atk*.25))};
-        else if(k==='poison') r.pb.poison = {t:el==='necro'?5:4, d:Math.max(1, Math.round(ms.atk*.25))};
+        if(k==='burn') r.pb.burn = {t:3, d:Math.max(1, Math.floor(ms.atk*.25))};
+        else if(k==='poison') r.pb.poison = {t:el==='necro'?5:4, d:Math.max(1, Math.floor(ms.atk*.25))};
         else if(k==='slow') r.pb.slow = {t:3};
         else r.pb[k] = {t:k==='corrode'?3:2};
         say(fx[1]);
