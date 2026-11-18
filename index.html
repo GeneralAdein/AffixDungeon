@@ -1425,7 +1425,7 @@ function newGame(){
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function load(){
-  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; S.perks = S.perks || {}; S.rep = S.rep || {}; S.mats = S.mats || {}; migrateTown(); if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
+  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; S.perks = S.perks || {}; S.rep = S.rep || {}; S.mats = S.mats || {}; migrateTown(); activeQuests().slice(1).forEach(q => { q.status = 'offered'; q.have = 0; }); if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
   return false;
 }
 
@@ -1794,7 +1794,9 @@ function trackTaken(d){ stats().taken += d; }
 function trackKill(m){
   const s = stats(); s.kills[m.base] = (s.kills[m.base]||0) + 1;
   if(S.run){ const t = runTrack(); t.kills[m.base] = (t.kills[m.base]||0) + 1;
-    const mat = matFor(MONSTERS[m.base].fam);
+    // quest materials only drop while you're on a quest that asks for them
+    const want = activeQuests().find(q => q.kind==='gather');
+    const mat = want && MATS[want.target].fams.includes(MONSTERS[m.base].fam) ? want.target : null;
     if(mat && Math.random() < (m.champion ? 1 : m.rarity==='rare' ? .6 : .35)){ t.mats[mat] = (t.mats[mat]||0) + 1; return mat; } }
   return null;
 }
@@ -1809,7 +1811,8 @@ function perkRow(id){
 }
 function questRow(q){
   const prog = questProgress(q), pct = Math.round(prog/q.need*100), D = DIFF[q.diff];
-  const btn = q.status==='offered' ? `<button class="btn sm" data-act="acceptQuest" data-arg="${q.b}|${q.id}">Accept</button>`
+  const busy = activeQuests().find(x => x.id !== q.id);
+  const btn = q.status==='offered' ? (busy ? `<button class="btn sm" disabled title="Finish or abandon your current quest first">On a quest</button>` : `<button class="btn sm" data-act="acceptQuest" data-arg="${q.b}|${q.id}">Accept</button>`)
     : questReady(q) ? `<button class="btn sm equipnow" data-act="turnIn" data-arg="${q.b}|${q.id}">Turn in</button>`
     : `<button class="btn sm" data-act="dropQuest" data-arg="${q.b}|${q.id}">Abandon</button>`;
   return `<div class="row upg quest ${q.diff}"><div class="upgtext"><span class="qd">${D.n}</span> <span class="nm">${q.label}</span>
@@ -1834,7 +1837,7 @@ function buildingView(b){
   }
   const npc = QUEST_NPC[b];
   const quests = npc ? `<h3 class="section-h">${TOWNFOLK[b].name.split(' ').slice(-1)[0]}’s work</h3>
-    <p class="sub" style="margin:0 0 6px">Only counts if you make it back to town alive. Materials go to your pouch, not your bag.</p>
+    <p class="sub" style="margin:0 0 6px">${(() => { const cur = activeQuests()[0]; return cur && cur.b !== b ? `You’re already on a quest for ${TOWNFOLK[cur.b].name}: ${cur.label}. One quest at a time.` : 'One quest at a time. Progress only counts if you make it back to town alive, and quest materials only drop while you’re on the quest that needs them.'; })()}</p>
     <div class="rows">${board(b).map(questRow).join('')}</div>` : '';
   return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
     <h1 class="bname">${B.name}</h1>${keeperHtml(b, QUEST_GIVERS.includes(b) ? `reputation ${rep}` : '')}
@@ -3309,7 +3312,7 @@ const ACT = {
     if(a==='favor') S.shop = genShop();
     if(a==='pouch' || a==='holster'){ S.hero.belt = S.hero.belt || []; for(const it of S.hero.bag.filter(x => beltTakes(x))){ if(beltCount() + (it.qty||1) <= beltCap()){ S.hero.bag.splice(S.hero.bag.indexOf(it),1); addToBag(it); } } }
     toast(`${p.name} is now level ${l+1}.`); save(); render(); },
-  acceptQuest: a => { const [b,id] = a.split('|'); const q = board(b).find(x => x.id===id); if(!q || q.status!=='offered') return; q.status = 'active'; q.have = 0; toast('Quest accepted. Progress counts when you make it back alive.'); save(); render(); if(sheetKind==='notice') openSheet(noticeSheet(),'notice'); },
+  acceptQuest: a => { const [b,id] = a.split('|'); const q = board(b).find(x => x.id===id); if(!q || q.status!=='offered') return; const cur = activeQuests()[0]; if(cur){ toast(`Finish or abandon “${cur.label}” first.`); return; } q.status = 'active'; q.have = 0; toast('Quest accepted. Progress counts when you make it back alive.'); save(); render(); if(sheetKind==='notice') openSheet(noticeSheet(),'notice'); },
   dropQuest: a => { const [b,id] = a.split('|'); const qs = board(b), i = qs.findIndex(x => x.id===id); if(i < 0) return; qs[i] = genQuest(b, qs[i].diff); save(); render(); },
   turnIn: a => { const [b,id] = a.split('|'); const qs = board(b), i = qs.findIndex(x => x.id===id), q = qs[i]; if(!q || !questReady(q)) return;
     if(q.kind==='gather') S.mats[q.target] -= q.need;
