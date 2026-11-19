@@ -673,6 +673,25 @@ svg[shape-rendering]{display:block}
 .mgem{width:14px;height:14px;flex:none;background:var(--good);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
 .statline.pending b{color:var(--good)}
 
+
+/* ===== New rooms and the Bestiary ===== */
+.bestbtn{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px 10px;background:var(--panel);border:2px solid var(--frame);color:var(--ink);font:inherit;cursor:pointer}
+.bestbtn .bimgs{display:flex;flex:none}
+.bestbtn .bimgs img{width:34px;height:34px;image-rendering:pixelated;margin-right:-8px}
+.bestbtn .sil{filter:brightness(0);opacity:.6}
+.bgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
+.bcell{display:flex;flex-direction:column;align-items:center;padding:4px 2px;background:var(--panel);border:2px solid var(--line);color:var(--ink);font:inherit;font-size:14px;line-height:1.1;text-align:center;cursor:pointer;min-width:0}
+.bcell img{width:40px;height:40px;image-rendering:pixelated}
+.bcell span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.bcell b{font-weight:400;color:var(--rare);font-size:16px}
+.bcell .stars{font-style:normal;color:var(--torch);font-size:12px;letter-spacing:1px}
+.bcell.locked{cursor:default}
+.bcell.locked img{filter:brightness(0);opacity:.45}
+.bcell.locked span{color:var(--muted)}
+.beasthead{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+.beasthead img{width:96px;height:96px;image-rendering:pixelated;flex:none;background:#0b0b10;border:2px solid var(--line)}
+.beasthead p{margin-top:4px;line-height:1.15}
+
 @media (prefers-reduced-motion: reduce){.npc,.npc img,.lampglow,.smoke,.spark,.tbadge{animation:none !important}}
 .townwrap{overflow:hidden;display:flex;align-items:center;justify-content:center;container-type:size;background:#0c140e}
 .townscene{width:calc(min(100cqw / 216, 100cqh / 300) * 320);aspect-ratio:320/440;height:auto;flex:none}
@@ -1443,6 +1462,7 @@ function monStats(m){
   if(m.suf) applyMods(s, MSUF[m.suf]);
   if(m.champion){ s.hp *= 1.35; s.atk *= 1.15; s.xp *= 1.8; s.gold *= 1.8; }
   if(m.cursed){ s.hp *= 1.5; s.atk *= 1.25; s.xp *= 1.5; s.gold *= 1.5; }
+  if(m.elite){ s.hp *= 1.4; s.atk *= 1.15; s.xp *= 2; s.gold *= 2; }
   s.hp = Math.max(1, Math.round(s.hp)); s.crit = Math.max(0, s.crit);
   const tr = TRAITS[b.trait]; if(tr){ applyMods(s, tr); if(tr.set) Object.assign(s, tr.set); }
   if(s.rage && m.hp > 0 && m.hp < s.hp*.5){ s.atk *= 1.35; s.raging = true; }
@@ -1501,6 +1521,14 @@ function heroLedger(){
   gear('block');
   put('gold', `Luck ${A.lck}`, (A.lck-5)*2, 'attr'); gear('gold');
   for(const k of ['lifesteal','thorns','regen','fire','xp']) gear(k);
+  for(const b of ((S.run && S.run.boons) || [])){ const n = BOONS[b].name + ' (idol)';
+    if(b==='bloodpact') put('atk', n, Math.round(tot('atk')*.25), 'idol');
+    if(b==='greed') put('gold', n, 40, 'idol');
+    if(b==='ironskin'){ put('def', n, Math.max(1, Math.round(tot('def')*.4)), 'idol'); put('spd', n, -15, 'idol'); }
+    if(b==='fleet'){ put('spd', n, 20, 'idol'); put('maxhp', n, -Math.round(tot('maxhp')*.15), 'idol'); }
+    if(b==='scholar'){ put('xp', n, 30, 'idol'); put('gold', n, -25, 'idol'); }
+    if(b==='leech') put('lifesteal', n, 8, 'idol');
+  }
   for(const k in CAPS){ const t = r1(tot(k)), c = clamp(t, CAPS[k][0], CAPS[k][1]); if(c !== t) put(k, c < t ? `Limit of ${c}` : `Minimum of ${c}`, r1(c-t), 'cap'); }
   return {led, A, magic, venom, tot};
 }
@@ -1793,8 +1821,37 @@ function bankRun(){
 function stats(){ S.stats = S.stats || {runs:0, deaths:0, mostGold:0, mostLost:0, bestHit:0, dealt:0, taken:0, kills:{}, chests:0, rooms:0, quests:0, returns:0}; return S.stats; }
 function trackHit(d){ const s = stats(); s.dealt += d; if(d > s.bestHit) s.bestHit = d; }
 function trackTaken(d){ stats().taken += d; }
+/* Bestiary mastery: the more of a species you kill, the better you fight it. */
+const MASTERY = [{n:10, dmg:5, guard:0}, {n:50, dmg:10, guard:5}, {n:150, dmg:15, guard:10}];
+function mastery(base){ const k = (stats().kills[base]||0); let r = {dmg:0, guard:0, tier:0}; MASTERY.forEach((t,i) => { if(k >= t.n) r = {dmg:t.dmg, guard:t.guard, tier:i+1}; }); return r; }
+function bestiarySheet(){
+  const s = stats(), all = Object.keys(MONSTERS).sort((a,b) => MONSTERS[a].fam.localeCompare(MONSTERS[b].fam) || MONSTERS[a].min - MONSTERS[b].min);
+  const found = all.filter(k => s.kills[k]).length;
+  return `<div class="grab"></div><h3 class="sheet-title">Bestiary</h3>
+    <p class="sub">${found} of ${all.length} species discovered. Kill 10, 50 and 150 of a species to master it: you deal more damage to it, and later take less.</p>
+    <div class="bgrid">${all.map(k => { const n = s.kills[k]||0, t = mastery(k).tier;
+      return n ? `<button class="bcell" data-act="beast" data-arg="${k}"><img src="${ART[k]}" alt=""><span>${MONSTERS[k].name}</span><b>${n.toLocaleString()}</b><i class="stars">${'★'.repeat(t)}${'☆'.repeat(3-t)}</i></button>`
+               : `<div class="bcell locked"><img src="${ART[k]}" alt=""><span>???</span></div>`; }).join('')}</div>
+    <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
+}
+function beastSheet(k){
+  const b = MONSTERS[k], s = stats(), n = s.kills[k]||0, ma = mastery(k), tr = b.trait && TRAITS[b.trait], seen = (s.seen||{})[k] || {pre:[], suf:[]};
+  const abil = FAMILY[b.fam].abil.map(id => `<li><b>${ABIL[id].name}</b> (from level ${ABIL[id].min}). ${ABIL[id].desc}</li>`).join('');
+  const aff = [...seen.pre.map(id => MPRE[id] && MPRE[id].name), ...seen.suf.map(id => MSUF[id] && MSUF[id].name)].filter(Boolean);
+  const tiers = MASTERY.map((t,i) => `<li class="${n >= t.n ? 'up' : 'sub'}">${n >= t.n ? '★' : '☆'} ${t.n} kills: +${t.dmg}% damage to it${t.guard ? `, −${t.guard}% damage from it` : ''}</li>`).join('');
+  return `<div class="grab"></div>
+    <div class="beasthead"><img src="${ART[k]}" alt=""><div><h3 class="sheet-title">${b.name}</h3><p class="sub">${cap(FAMILY[b.fam].name)} family${b.type ? ', '+b.type : ''}. Found from floor ${b.min}.${b.w !== undefined && b.w < .5 ? ' Rare.' : ''}</p><p>“${b.flavor || 'Little is known about it.'}”</p></div></div>
+    <div class="affix"><h4>Slain<small>${n.toLocaleString()}</small></h4><ul>${tiers}</ul></div>
+    ${tr ? `<div class="affix trait"><h4>${tr.name}<small>Species trait</small></h4><ul><li>${tr.desc}</li></ul></div>` : ''}
+    <div class="affix"><h4>Abilities<small>${cap(FAMILY[b.fam].name)} family</small></h4><ul>${abil}</ul></div>
+    <div class="affix"><h4>Affixes seen<small>${aff.length}</small></h4><ul>${aff.length ? `<li>${aff.join(', ')}</li>` : '<li class="sub">None yet. Prefixes and suffixes you meet on this species are recorded here.</li>'}</ul></div>
+    <div class="sheet-actions"><button class="btn" data-act="bestiary">Back</button><button class="btn" data-act="closeSheet">Close</button></div>`;
+}
 function trackKill(m){
   const s = stats(); s.kills[m.base] = (s.kills[m.base]||0) + 1;
+  s.seen = s.seen || {}; const se = s.seen[m.base] = s.seen[m.base] || {pre:[], suf:[]};
+  if(m.pre && !se.pre.includes(m.pre)) se.pre.push(m.pre); if(m.suf && !se.suf.includes(m.suf)) se.suf.push(m.suf);
+  { const t = mastery(m.base); if(t.tier && MASTERY[t.tier-1].n === s.kills[m.base]) setTimeout(() => toast(`Mastery! ${MONSTERS[m.base].name}: +${t.dmg}% damage${t.guard ? `, −${t.guard}% damage taken` : ''}.`), 900); }
   if(S.run){ const t = runTrack(); t.kills[m.base] = (t.kills[m.base]||0) + 1;
     // quest materials only drop while you're on a quest that asks for them
     const want = activeQuests().find(q => q.kind==='gather');
@@ -1857,8 +1914,8 @@ function guildView(){
     <div class="statgrid">${rec.map(([l,v]) => statBox(l, Number(v||0).toLocaleString())).join('')}</div>
     <h3 class="section-h">Materials pouch</h3>
     ${mats.length ? `<p class="statline">${mats.map(([m,c]) => `<span>${MATS[m].name} <b>${c}</b></span>`).join('')}</p>` : '<p class="empty-note">Monsters drop materials for quests. Bring them home to keep them.</p>'}
-    <h3 class="section-h">Monsters slain <small class="sub">${kills.length} of ${Object.keys(MONSTERS).length} species</small></h3>
-    <div class="killgrid">${kills.length ? kills.map(([k,c]) => `<div class="kill"><img src="${ART[k]}" alt=""><span>${MONSTERS[k].name}</span><b>${c.toLocaleString()}</b></div>`).join('') : '<p class="empty-note">Nothing yet. The dungeon is waiting.</p>'}</div>
+    <h3 class="section-h">Bestiary <small class="sub">${kills.length} of ${Object.keys(MONSTERS).length} species</small></h3>
+    <button class="bestbtn" data-act="bestiary"><span class="bimgs">${kills.slice(0,5).map(([k]) => `<img src="${ART[k]}" alt="">`).join('') || '<img src="'+ART.rat+'" alt="" class="sil">'}</span><span><b>Open the Bestiary</b><br><span class="sub">Every species you’ve slain, its lore and abilities, and your mastery over it.</span></span></button>
     <div class="foot"><button class="linkbtn" data-act="resetAsk">Start a new character</button></div>
   </div>`;
 }
@@ -2110,6 +2167,7 @@ function dungeonView(){
       <div class="panel after-main">
         <h2>${chest ? 'Treasure' : 'Victory'}</h2><p class="lead">${chest ? (rw.trap || 'You pry the chest open.') : `${article(rw.name)} ${rw.name} falls.`}</p>
         <p class="gains">${chest ? '' : `<span class="up">+${rw.xp} experience</span>`}${rw.mat ? `<span class="up">+1 ${MATS[rw.mat].name}</span>` : ''}<span class="price"><span class="coin"></span>+${rw.gold} gold</span></p>
+        ${rw.key ? `<div class="matrow"><span class="mgem"></span><span><b>The vault key</b><br><span class="sub">Find the locked vault on this floor and open it.</span></span></div>` : ''}
         ${rw.mat ? `<div class="matrow"><span class="mgem"></span><span><b>+1 ${MATS[rw.mat].name}</b><br><span class="sub">Goes to your materials pouch for quests. It doesn’t use bag space.</span></span></div>` : ''}
         ${n ? `<h3 class="section-h">Loot</h3><p class="sub" style="margin-bottom:6px">${n} item${n===1?'':'s'} ${chest?'inside':'dropped'}. Tap one to compare it with your gear.</p><div class="rows">${lootList}</div>`
             : `<div class="noloot">${r.tookAll ? 'Nothing left on the ground.' : 'No loot this time.'}</div>`}
@@ -2329,6 +2387,8 @@ function itemSheet(it, ctx){
   } else if(ctx==='merchant'){
     const p = merchantPrice(it);
     acts.push(`<button class="btn primary" data-act="mbuy" data-arg="${it.uid}" ${h.gold<p||full?'disabled':''}>Buy for ${priceTag(p)}</button>`, backBtn);
+  } else if(ctx==='rack'){
+    acts.push(`<button class="btn primary" data-act="rackTake" data-arg="${it.uid}">Take this one</button>`, `<button class="btn" data-act="armoryOpen">Back to the rack</button>`);
   } else if(ctx==='smithy'){
     const c = reforgeCost(it);
     acts.push(`<button class="btn primary" data-act="reforge" data-arg="${it.uid}|pre" ${h.gold<c?'disabled':''}>Reforge prefix ${priceTag(c)}</button>`, `<button class="btn primary" data-act="reforge" data-arg="${it.uid}|suf" ${h.gold<c?'disabled':''}>Reforge suffix ${priceTag(c)}</button>`, backBtn);
@@ -2343,7 +2403,7 @@ function itemSheet(it, ctx){
     acts.push(`<button class="btn primary" data-act="store" data-arg="${it.uid}">Store in stash</button>`, backBtn);
   } else acts.push(backBtn);
 
-  const title = {smithy:'On the anvil', merchant:'Merchant’s wares', loot:'On the ground', bag:'In your bag', equipped:'Equipped', shopBuy:'For sale', shopSell:'In your bag', stash:'In your stash', tavernBag:'In your bag'}[ctx] || 'Item';
+  const title = {rack:'On the rack', smithy:'On the anvil', merchant:'Merchant’s wares', loot:'On the ground', bag:'In your bag', equipped:'Equipped', shopBuy:'For sale', shopSell:'In your bag', stash:'In your stash', tavernBag:'In your bag'}[ctx] || 'Item';
   let body;
   if(gear && ctx!=='equipped'){
     const cur = h.equip[b.kind];
@@ -2377,6 +2437,9 @@ function monPanel(m, tags){
   const sec = [];
   if(m.champion) sec.push(`<div class="psec"><b class="champ">Champion</b><ul><li class="down">+35% HP</li><li class="down">+15% Dmg</li></ul></div>`);
   if(m.cursed) sec.push(`<div class="psec"><b class="down">Cursed</b><ul><li class="down">+50% HP</li><li class="down">+25% Dmg</li></ul></div>`);
+  if(m.elite) sec.push(`<div class="psec"><b class="champ">Elite</b><ul><li class="down">+40% HP</li><li class="down">+15% Dmg</li><li class="up">Rare drop</li></ul></div>`);
+  if(m.key) sec.push(`<div class="psec"><b class="champ">Key carrier</b><ul><li class="up">Drops the vault key</li></ul></div>`);
+  { const ma = mastery(m.base); if(ma.dmg) sec.push(`<div class="psec"><b class="up">Mastery</b><ul><li class="up">+${ma.dmg}% Dmg to it</li>${ma.guard ? `<li class="up">−${ma.guard}% Dmg from it</li>` : ''}</ul></div>`); }
   if(tr) sec.push(`<div class="psec"><b class="trait">${tr.name}</b><ul><li class="${tr.good?'up':'down'}">${tr.short}</li></ul></div>`);
   if(m.pre) sec.push(`<div class="psec"><b class="afx">${MPRE[m.pre].name}</b><ul>${panelLines(MPRE[m.pre])}</ul></div>`);
   if(m.suf) sec.push(`<div class="psec"><b class="afx">${MSUF[m.suf].name}</b><ul>${panelLines(MSUF[m.suf])}</ul></div>`);
@@ -2490,7 +2553,7 @@ function statsSheet(){
   const h = S.hero, {led, A} = heroLedger(), hs = heroStats();
   const spent = ATTR_KEYS.reduce((a,k)=>a+h.attr[k],0);
   const attrs = ATTRS.map(([k,l]) => statGroup(k, l, '', ATTR_DESC[k], A[k], led[k]||[], ['gear','cap'], h.points>0, h.attr[k])).join('');
-  const derived = DERIVED.filter(([k]) => ALWAYS.has(k) || (led[k]||[]).length).map(([k,l,u,d]) => statGroup(k, l, u, d, hs[k], led[k]||[], ['attr','gear','cap','town'], false)).join('');
+  const derived = DERIVED.filter(([k]) => ALWAYS.has(k) || (led[k]||[]).length).map(([k,l,u,d]) => statGroup(k, l, u, d, hs[k], led[k]||[], ['attr','gear','cap','town','idol'], false)).join('');
   const pb = pbuffs(), fx = [];
   if(S.run && S.run.phase==='combat'){
     if(pb.weak) fx.push(['Cursed','Damage −30%','down']); if(pb.corrode) fx.push(['Corroded','Armor −50%','down']); if(pb.slow) fx.push(['Slowed','Speed −40%','down']);
@@ -2546,8 +2609,25 @@ const ROOM = {
   stairs:{name:'Stairs Down', art:'stairs'},
   shrine:{name:'Shrine', art:'shrine'},
   fire:{name:'Campfire', art:'campfire'},
-  merchant:{name:'Merchant', art:'merchant'}
+  merchant:{name:'Merchant', art:'merchant'},
+  vault:{name:'Vault', art:'vault'},
+  idol:{name:'Idol', art:'idol'},
+  armory:{name:'Armory', art:'armory'},
+  harvest:{name:'Harvest', art:'harvest'}
 };
+const OART3 = {"vault": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACeUlEQVR42u2ZP0gbURzHv3cch0gUh1BKKaVIh4AOUkKGcAgpDiVDxgyCixRRtOgsHYu4i0MXhwodHEpxOBRKA+UIJYQgYmIGERGRcBwlg0MpB+lgSN6ld0nu3Xv3B/Kbjnvv7j7f9/u99755AUYxCk8h0D44Jskt1jB/zL+CLwLGJLmVX1xmPppHXw5cixDDAg8A82/eus6sGBb4RuOeSoQYBngvmRBYwB8fH1HD5nJ5SwbI+PnjZOCcEFjAJ9ML1ALKxe/I5fK2AoYRIQQJDwCG3sDN1QVSKcWxTz8Rohd4SR7HWbno2OesXBzYfnd7jZevZlEqaVRzQgxq5HuDVoTrfYAHfPzJ06FEeN4HeMAPK8IwdG8CeMK7LScypDA4SkNvUD/rScBcMs2l3Y0gkRb+484O0yzQvo86Ax+2tztrvNNI2rWTo3t3ew0AeP5iGqvv6HyWGJVaD1wAD3jfBPCC5ypAK6id63q1Eh0BWkGFVlBR3kt0LfNeAvVqhYsQiTU8CW7x/e37yfcVJGZeR28SA8Bl3QhvCdmNvmzqkE3dAn+4HmdaSmJUR565F1IyWWx97e1xDgD4VEtZ7ioZq4UOxAuFJTxloNfraAUVh+txAMDmQfeUofbrG1bmxwEAu6dmZxUivVAkVqHQZaA3lEwWS/tqe7V5hrXPJgBgI/2A3dPHa5Z7AJdfZEomCwBY2lcRm5j6r2wi44VIYF7w3ATwdJ/cBfgJz1yA3/BMBQQBz9RK2NkCJ6swqH10rOL2WMXJCgyyCr4dq9j9exJUzbsWEAZ4p5PpviVEgpMvIOFjk49Wodn8bfsOr+39wIeeA3bwTh8cBUX8A/jjN18L8ZOBAAAAAElFTkSuQmCC", "idol": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAClUlEQVR42u1YMWvbQBT+ZA5hSoYMxnQqnjJkciGD0dYlQwimk4cOwRT/gA4dQqdMwUMo/QGiGA8ZPIVQQimkgQ4mBEOcDkUYDaKDMEaDpmCMQV0qc3bk+KR7kiySBxp0kp6+79333rs74KlanqneOvoS/mGn9dmj+LGsr1zWlfBMINME2npTKgHzTPXaehOGYaZThWQTmcKHtISCZiHPVC/oiiP6jGI22noTB43DGUCtrgW+1211Pf6bVHNgPJ0oB43DuTGtri0FH/TcMEwcn+gYTydKahIyDBOGYeLTxwZ6F/2V7/cu+qBMXCkC4+lEOT7Rhd93bHdGGoBQ9M8+eNePPVcoqpFafAEA2NkrrwQPAFbfAgBMRvdS8iEj8JjuF8HzNvjxR5oAeSe+7Fm47FkPwN/ZLu6WEFm/pUTrKDjy/8cBwB3SkCGXkCMQZR/86Lcdv4RWVQEftH+JgqcyhcJJnqne1u52KOAU0Y8tB8ybAcybwdy983cUS7opVI4WZ8EdujPQhVfFB9H3G+HaSEira7OlRKlcCtS6P7azV4ZjuyR9gFFOp9+Jl62J/OcOYT9gcehSdEmRuT0xD56qnObSAC9iIv0nMQJRZPP2i1J5PlYJY5XuFSrdq9iTNjIBUU2K2ubLzWTL6CpNXmtvsikhkR0Zb/vWLfatWwDA1u629NF65pOYxek8KIG/lV6TNrNcnOB5uax9GU2ydMYqIR48L5dMzECYyFMt5iLPAF/+ZFeZvq8omxsWFXzt3XsAwPl5Rw78xgaq1RoAoHP61QtLQjoHqtXaHIko3wPAcGgnsyfmo09lPPhfP7+HkhJDihY16mQEKAAkeqzCy4cH7zjyh1aFQjGSjJhM1CmAL/riiTwJ+wegwmrz72BMRQAAAABJRU5ErkJggg==", "armory": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACmElEQVR42u1YMWvbQBR+EiJo8NLQIdm8OH+gXgIZSucbPGjo0DFjwU5GZyvUeEpj8FQ0esjgQYO2DnWL6SSCh1JovCR0sKBLaQwRQqAO5VRFuTufdLpKhnugwb7Hvfe99927ew9AiRIlSlhiGjvxVjtvO19imSB0mc6PpzMAABhPZ9Iyoct2HossELqIk3kcWlwt6kMhHGFSVEnRx3Lcvyg9C7ps6mSjXzYIvUyaBFGovbaeM6ljD3oQRKHGS9FN9nXWBmfWAZxZB9SIkXiNQSyuFg/Wr7995XIeOz2ezqBhakz7XBS69e9ypzWIQs0e9B44/9mxic6nI50+W7z2DZkX2eX5Cbw8fcd0vmFqMJx8LFy1mABG7pLrSUBb66IWjM5Pcj8p0s47np8fAOY/D7CGqUEXtag6nfYeOJ7P1GFJF7Xg1r+DyXwVk7JolMF9Hl3e/bLUKXQGgijUJvNV3DD/Al4H9Oyvgxgm8xXTCEsH26Bx3vF8WAcxtXrpm9LXae8loPBHApz98uiwDiy2X3oVQi8OS3nf4IOOs3zcv6jHczqPpLNsD3qQvkO2AgCJavagR6xctQdQm45MAVAAFAAFQAFQAP6HSO3IRHV4Gh7pHZmoDm5qtqIjKzIBEerILt8PhTsylk7aPq0jMzgbagAAuHHbyZrbfwJDCwChf/81kZcYyvKZNlah6ZjGTpy1L9SRBVGoNZGXGHzTaSZOs5ystAqRQKQjd+OvK3Nc+B7AzldxcAtloIp7ILvGXUbxzBJHh1SjR+4S3KfPYN/a3Xhf8NwpWZ2Ru3xk/+30+hGIwmOVLmrBB/i9UYdnH5G7xmDOa1LzTVGuFhm14MEua7il0Sj06mg/+f3j530tHm6fvv+qtOJJkT+4T9Izd+JoegAAAABJRU5ErkJggg==", "harvest": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACuElEQVR42u1YMWvbQBh9MsJ4MB5C8RBKEcFkNEEEkyEYIzp4KKJ4KCWDMZ069xf4F3TuVIyHUjqYYDJ4MMaYDCEU0VmEYDJkCMWYEIwxBnVwTtUpsnWSPpmW6IGHk6zv3ve9992dBCRIkCBBggQEaFmnF0kVEoUSJHh+3pWoAmXktOUcz5cL6b9JICOnrW/qK+7aiXFDkkTLOr1oSG+PYkvASV7rnmGgv4E5mQEAmuPfsSuRogpkTmb4cqzBnMzw8XywMWHn75+xkNd1d/XjsBqJAozA+OoS46tLX/Ja98xWram8QBQlUkGqTCG9qNVILSQifUZOW6z6SqHkaQtRq5EqQCm9iNVisxC19FQWlUWqdmLccAGbL4uku+0ai1oi8VNU0s+XC0kplDj/i1QzqkVTlDaYLxfSfLmQGPFhv41hvy2USFiLSkFk9ltl2P+G/bZnjMrrOpiSzjhRVqcUReOJkAcAds9ttSirkxyF/K+fXQDAwaH+pIKjEf8aUS4fcZVlyUddCEIlwIi7xweHuidhbzuOHtUoRzrQSWGrvg7T6XTjfUVRvK8XyhDpMTILdbs9bqzrVbtR1/XBOvIr/4+2ZyEnYTd2cjJqtQ8AgE7nKwDYY8NYLY/t9nfumXr9/XZ7wA+N6h5HvFHdQ6t37UtYKZQC7/CBjtMAoGm1tf/RtJpNnhF3jv2wk5M3nlojHac/vdv/+6L9WM3BoANnUn5kW71r20ZuqKrGPf/5hymkhBSUvJuQCHGvZ1giqqo9iTG+fVj10PmtbxIyhdeDoFLMQ9nN2sQrxTxHOtYmDjuJVxxG3PP+3QNtAlTEfee5Cz6PcBPXjne3Stow72ma2L2MOhNxTq7ksyQVNsz7QHtB4JMgS0Tdz/GbUD4bygJhiUf+MufebNwJiRKO+mklts/rou/Zzx5/ANwSr5Lsk9fqAAAAAElFTkSuQmCC"};
+const HARVEST_NAME = {silk:'Spider Nest', venom:'Snake Pit', spore:'Mushroom Grove', tail:'Rat Warren', stinger:'Wasp Hive', chitin:'Molting Ground', bone:'Bone Pile', scale:'Shed Dragon Scales', core:'Golem Wreck', pelt:'Beast Den', ear:'Goblin Camp', tusk:'Orc Camp', sigil:'Ritual Circle', insignia:'Fallen Soldiers'};
+/* Bargains from a cursed idol: a boon and a price, both lasting the rest of the run. */
+const BOONS = {
+  bloodpact:{name:'Blood Pact', good:'+25% damage', bad:'monsters hit you 15% harder'},
+  greed:{name:'Greed', good:'+40% gold found', bad:'potions heal 30% less'},
+  ironskin:{name:'Iron Skin', good:'+40% armor', bad:'−15 speed'},
+  fleet:{name:'Fleetfoot', good:'+20 speed', bad:'−15% max health'},
+  scholar:{name:'Scholar', good:'+30% experience', bad:'−25% gold found'},
+  leech:{name:'Leech', good:'+8% life steal', bad:'you take 10% more damage'}
+};
+const hasBoon = id => !!(S.run && S.run.boons && S.run.boons.includes(id));
+function rareItem(level, kind){ let it; for(let i=0;i<40;i++){ it = genItem(level, kind || pick(['weapon','shield','head','body','hands','feet','neck','ring'])); if(it.rarity==='rare') return it; } return it; }
 const EMPTY_FLAVOR = ['Broken crates and old bones.','A collapsed storeroom. Nothing worth taking.','Water drips somewhere in the dark.','Faded writing covers the walls.','An old campsite, long cold.','Rusted chains hang from the ceiling.','The air smells of damp stone.'];
 
 const key = (x,y) => x+','+y;
@@ -2580,7 +2660,7 @@ function genFloor(depth){
   const run = R(); if(run){ fl.pre = run.fpre || null; fl.suf = run.fsuf || null; }
   // every 10th floor always carries a doom
   if(depth % 10 === 0) fl.doom = pick(Object.keys(FDOOM));
-  const want = Math.round(clamp(9 + depth*1.5, 9, 22));
+  const want = Math.round(clamp(12 + depth*1.5, 12, 27));
   const add = (x,y) => { const k = key(x,y); fl.rooms[k] = {x, y, t:'empty'}; return k; };
   const link = (a,b) => { const l = a < b ? a+'|'+b : b+'|'+a; if(!fl.links.includes(l)) fl.links.push(l); };
   const start = add(0,0); fl.rooms[start].t = 'start'; fl.rooms[start].done = true;
@@ -2609,9 +2689,24 @@ function genFloor(depth){
   if(fl.doom !== 'lightless' && (fl.suf==='rest' || Math.random() < .45)) set(leaves()[0] || free()[0], 'fire');
   if(fl.doom !== 'lightless' && (fl.suf==='rest' || Math.random() < .35)) set(leaves()[0] || free()[0], 'shrine');
   if(fl.suf==='trade' || (depth > 1 && Math.random() < .3)) set(leaves()[0] || free()[0], 'merchant', {items:[genItem(depth,'potion'), genItem(depth), genItem(depth), genItem(depth,'scroll')]});
+  if(depth >= 2 && Math.random() < .4) set(leaves()[0] || free()[0], 'vault');
+  { const avail = Object.keys(BOONS).filter(b => !((run && run.boons) || []).includes(b)); if(depth >= 2 && avail.length && Math.random() < .3) set(free()[0], 'idol', {boon: pick(avail)}); }
+  if(Math.random() < .35) set(leaves()[0] || free()[0], 'armory', {items: shuffle(['weapon','shield','head','body','hands','feet','neck','ring']).slice(0,3).map(k => genItem(depth, k))});
+  { const gq = activeQuests().find(q => q.kind==='gather'); if(gq && Math.random() < .7) set(leaves()[0] || free()[0], 'harvest', {mat: gq.target}); }
   const share = Math.min(.85, (fl.pre==='infested' ? .55 : fl.pre==='quiet' ? .2 : .38) * (fl.doom==='teeming' ? 2 : 1));
-  const rest = free(); const nMon = Math.round(rest.length * share);
-  for(let i=0; i<nMon; i++) set(rest[i], 'mon', {m:genMonster(depth, false, monOpts)});
+  const rest = free(); const nMon = Math.max(2, Math.round(rest.length * share));
+  for(let i=0; i<nMon && i<rest.length; i++) set(rest[i], 'mon', {m:genMonster(depth, false, monOpts)});
+  const monRooms = shuffle(keys.filter(k => fl.rooms[k].t==='mon' && !fl.rooms[k].m.champion));
+  // one marked elite: a rare monster with extra levels and a guaranteed rare drop
+  if(depth >= 2 && monRooms.length > 1 && Math.random() < .45){
+    let m; for(let i=0;i<25;i++){ m = genMonster(depth, false, Object.assign({}, monOpts, {lvl:(monOpts.lvl||0)+1})); if(m.rarity==='rare') break; }
+    m.elite = true; m.hp = monStats(m).hp; fl.rooms[monRooms[0]].m = m;
+  }
+  // the vault key is carried by one of the other monsters
+  if(keys.some(k => fl.rooms[k].t==='vault')){
+    const holder = monRooms.find(k => !fl.rooms[k].m.elite);
+    if(holder) fl.rooms[holder].m.key = true; else for(const k of keys) if(fl.rooms[k].t==='vault') fl.rooms[k].t = 'empty';
+  }
   for(const k of keys) if(fl.rooms[k].t === 'empty') fl.rooms[k].flavor = pick(EMPTY_FLAVOR);
   fl.cur = start; fl.visited[start] = 1;
   return fl;
@@ -2624,7 +2719,7 @@ function typeKnown(fl, k){ return fl.visited[k] || charted(fl, k) || (fl.suf ===
 function pending(rm){ return (rm.t==='mon' && !rm.done) || (rm.t==='trap' && !rm.done); }
 function roomArt(rm){
   if(rm.t==='mon') return rm.done ? null : ART[rm.m.base];
-  const a = ROOM[rm.t].art; return a ? (a==='entrance' || a==='trap' ? OART2[a] : OART[a]) : null;
+  const a = ROOM[rm.t].art; return a ? (OART3[a] || (a==='entrance' || a==='trap' ? OART2[a] : OART[a])) : null;
 }
 
 /* ---------- the map ---------- */
@@ -2689,6 +2784,28 @@ function roomPanel(){
     case 'shrine': text = text || (rm.used ? 'The shrine has gone dark.' : 'A glowing shrine hums softly.'); if(!rm.used) acts = `<button class="btn primary span2" data-act="pray">Pray at the shrine</button>`; break;
     case 'fire': text = text || (rm.used ? 'Only embers remain.' : 'A campfire crackles. Someone left it burning.'); if(!rm.used) acts = `<button class="btn primary span2" data-act="restFire">Rest by the fire</button>`; break;
     case 'merchant': text = text || '“Everything has a price down here.”'; acts = `<button class="btn primary span2" data-act="trade">Trade</button>`; break;
+    case 'vault':
+      title = 'Locked Vault';
+      if(rm.done){ title = 'Emptied Vault'; text = text || 'Bare shelves and a broken lock.'; }
+      else if(fl.hasKey){ text = text || 'The key fits. Something valuable waits inside.'; acts = `<button class="btn primary span2" data-act="openVault">Unlock the vault</button>`; }
+      else text = text || 'A sealed iron door. One of the monsters on this floor carries the key.';
+      break;
+    case 'idol': {
+      const B = BOONS[rm.boon]; title = 'Cursed Idol';
+      if(rm.done){ text = text || 'The idol’s eyes have gone dark.'; }
+      else { text = text || `It offers <b>${B.name}</b>: <span class="up">${B.good}</span>, but <span class="down">${B.bad}</span>. Lasts the rest of this run.`;
+        acts = `<button class="btn primary" data-act="idolYes">Accept the bargain</button><button class="btn" data-act="idolSmash">Smash it</button>`; }
+      break; }
+    case 'armory':
+      title = 'Armory Rack';
+      if(rm.done){ text = text || 'An empty weapon rack.'; }
+      else { text = text || 'Three pieces of gear hang on the rack. You can carry off one.'; acts = `<button class="btn primary span2" data-act="armoryOpen">Choose one</button>`; }
+      break;
+    case 'harvest':
+      title = HARVEST_NAME[rm.mat] || 'Harvest';
+      if(rm.done){ text = text || 'Picked clean.'; }
+      else { text = text || `Your quest needs ${MATS[rm.mat].name}. Searching here could turn up several, if nothing wakes up.`; acts = `<button class="btn primary span2" data-act="harvest">Search it</button>`; }
+      break;
   }
   if(!acts) acts = `<div class="idle">Tap a connected room to move</div>`;
   const rar = rm.t==='mon' && !rm.done ? 'r-'+rm.m.rarity : '';
@@ -2825,6 +2942,7 @@ function floorInfoSheet(){
   if(fl.suf) lines.push(`<div class="affix"><h4>${FSUF[fl.suf].name}<small>Dungeon suffix, all run</small></h4><ul><li>${FSUF[fl.suf].desc}</li></ul></div>`);
   return `<div class="grab"></div><h3 class="sheet-title">Floor ${r.depth}: ${floorName(fl, r.depth)}</h3>
     ${lines.length ? lines.join('') : '<p class="sub">No modifiers this run. Every 10th floor still brings a doom.</p>'}
+    ${(r.boons||[]).map(b => `<div class="affix"><h4>${BOONS[b].name}<small>Idol bargain, all run</small></h4><ul><li class="up">${cap(BOONS[b].good)}</li><li class="down">${cap(BOONS[b].bad)}</li></ul></div>`).join('')}
     <p class="sub" style="margin-top:8px">Find the stairs to go deeper, or explore other rooms for treasure. You won’t know what’s in a room, or where its doors lead, until you step inside.${r.depth%3===0 ? ' A champion guards the stairs on this floor.' : ''}</p>
     <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
@@ -2906,7 +3024,7 @@ function playerAttack(){
   else{
     let dmg = calcDmg(heroAtk(), hs.magic ? 0 : monDef());
     const crit = Math.random()*100 < hs.crit; if(crit) dmg = Math.round(dmg*1.75);
-    dmg = Math.ceil(dmg + hs.fire);
+    dmg = Math.ceil((dmg + hs.fire) * (1 + mastery(m.base).dmg/100));
     if(ms.hide) dmg = Math.max(1, Math.round(dmg*ms.hide));
     dmg = absorb(dmg);
     m.hp -= dmg; trackHit(dmg);
@@ -2940,7 +3058,8 @@ function monAttack(mult=1, ignoreArmor=false){
   if(r.mb.blind && Math.random() < .35){ log(`${cap(short(m))} swings blindly and misses.`); floatNum('Miss','hero','miss'); return 0; }
   if(Math.random()*100 < hs.dodge - ms.acc){ log(`You dodge ${short(m)}.`); floatNum('Dodged','hero','miss'); return 0; }
   if(ms.execute && S.hero.hp < hs.maxhp*.3){ mult *= 2; log(`${cap(short(m))} sees you falter.`); }
-  let dmg = calcDmgDown(ms.atk*mult*(r.mb.rally?1.3:1)*(r.mb.weak?.7:1), (ignoreArmor||ms.magichit) ? 0 : heroDef()*(ms.pierce?.5:1));
+  const taken = (hasBoon('bloodpact') ? 1.15 : 1) * (hasBoon('leech') ? 1.1 : 1) * (1 - mastery(m.base).guard/100);
+  let dmg = calcDmgDown(ms.atk*mult*(r.mb.rally?1.3:1)*(r.mb.weak?.7:1)*taken, (ignoreArmor||ms.magichit) ? 0 : heroDef()*(ms.pierce?.5:1));
   const crit = Math.random()*100 < ms.crit; if(crit) dmg = Math.floor(dmg*1.5);
   if(r.pb.defend) dmg = Math.max(1, Math.floor(dmg*.5));
   const blocked = Math.random()*100 < hs.block;
@@ -3072,7 +3191,8 @@ function victory(){
   const gold = Math.max(1, Math.round(ms.gold*rand(.8,1.25)*(1+hs.gold/100))) + (m.stolen||0);
   if(m.stolen) toast(`You got back the ${m.stolen} gold it stole.`);
   S.hero.gold += gold;
-  r.reward = {kind:'kill', xp, gold, name:monName(m), mat:trackKill(m)};
+  r.reward = {kind:'kill', xp, gold, name:monName(m), mat:trackKill(m), key:!!m.key};
+  if(m.key && r.floor) r.floor.hasKey = true;
   if(r.monKey && r.floor && r.floor.rooms[r.monKey]){ const rm = r.floor.rooms[r.monKey]; rm.done = true; delete rm.m; r.monKey = null; }
   r.tookAll = false;
   const items = [];
@@ -3080,6 +3200,7 @@ function victory(){
   if(Math.random() < ch) items.push(genItem(m.lvl));
   if((m.rarity==='rare'||m.champion) && Math.random() < .55) items.push(genItem(m.lvl+1));
   if(Math.random() < .14) items.push(genItem(m.lvl,'potion'));
+  if(m.elite) items.unshift(rareItem(m.lvl + 1));
   r.loot = items;
   gainXp(xp);
   r.pb = {};
@@ -3132,7 +3253,8 @@ function findItem(id){
   const h = S.hero;
   for(const sl of SLOTS) if(h.equip[sl] && h.equip[sl].uid===id) return h.equip[sl];
   const mer = (merchantRoom() || {}).items || [];
-  for(const list of [h.bag, h.belt || [], S.stash, S.shop.items, S.run ? S.run.loot : [], mer]){ const f = findIn(list, id); if(f) return f.it; }
+  const cur = S.run && S.run.floor && S.run.floor.rooms ? S.run.floor.rooms[S.run.floor.cur] : null, rack = cur && cur.t==='armory' ? cur.items || [] : [];
+  for(const list of [h.bag, h.belt || [], S.stash, S.shop.items, S.run ? S.run.loot : [], mer, rack]){ const f = findIn(list, id); if(f) return f.it; }
   return null;
 }
 function useItem(id){
@@ -3146,7 +3268,7 @@ function useItem(id){
   closeSheet();
   const hs = heroStats();
   if(b.kind==='potion'){
-    const starve = S.run && S.run.floor && S.run.floor.doom==='starving' ? .5 : 1;
+    const starve = (S.run && S.run.floor && S.run.floor.doom==='starving' ? .5 : 1) * (hasBoon('greed') ? .7 : 1);
     const amt = Math.max(0, Math.min(Math.round(s.heal*starve), hs.maxhp - h.hp)); h.hp += amt;
     floatNum('+'+amt,'hero','heal');
     const extra = [];
@@ -3309,6 +3431,30 @@ const ACT = {
   store: a => { const f = findIn(S.hero.bag, a); if(!f) return; S.hero.bag.splice(f.i,1); S.stash.push(f.it); closeSheet(); save(); render(); },
   retrieve: a => { const f = findIn(S.stash, a); if(!f || !roomFor(f.it)) return; S.stash.splice(f.i,1); addToBag(f.it); closeSheet(); save(); render(); },
   resetAsk: () => openSheet(`<div class="grab"></div><h3 class="sheet-title">Start a new character?</h3><p class="lead" style="margin-top:8px">This erases your level, gold, gear and stash.</p><div class="sheet-actions"><button class="btn" data-act="closeSheet">Keep playing</button><button class="btn primary" data-act="reset">Start over</button></div>`),
+  openVault: () => { const r = R(), fl = r.floor, rm = fl.rooms[fl.cur]; if(rm.t!=='vault' || rm.done || !fl.hasKey) return;
+    rm.done = true; const L = r.depth + 1, items = [rareItem(L), genItem(L)]; if(Math.random() < .5) items.push(genItem(L, 'scroll'));
+    const gold = Math.round(rand(20,35)*r.depth*(1+heroStats().gold/100)); S.hero.gold += gold;
+    r.reward = {kind:'chest', xp:0, gold, name:'vault'}; r.loot = items; r.tookAll = false; r.phase = 'loot'; stats().chests++; save(); render(); },
+  idolYes: () => { const r = R(), rm = r.floor.rooms[r.floor.cur]; if(rm.t!=='idol' || rm.done) return;
+    r.boons = r.boons || []; r.boons.push(rm.boon); rm.done = true; const B = BOONS[rm.boon];
+    S.hero.hp = Math.min(S.hero.hp, heroStats().maxhp); r.msg = `You accept ${B.name}. ${cap(B.good)}, but ${B.bad}.`; save(); updateHud(); updateExplore(); },
+  idolSmash: () => { const r = R(), rm = r.floor.rooms[r.floor.cur]; if(rm.t!=='idol' || rm.done) return; rm.done = true;
+    if(Math.random() < .5){ const g = Math.round(rand(6,12)*r.depth); S.hero.gold += g; r.msg = `The idol cracks open. ${g} gold spills out.`; }
+    else { const d = Math.max(1, Math.round(heroStats().maxhp*.12)); S.hero.hp = Math.max(1, S.hero.hp - d); ouch(); r.msg = `A scream fills the room. The idol’s curse burns you for ${d}.`; }
+    save(); updateHud(); updateExplore(); },
+  armoryOpen: () => { const r = R(), rm = r.floor.rooms[r.floor.cur]; if(rm.t!=='armory' || rm.done) return;
+    openSheet(`<div class="grab"></div><h3 class="sheet-title">Armory Rack</h3><p class="sub">Take one. The others stay behind. Tap one to compare it with your gear.</p>
+      <div class="rows" style="margin-top:8px">${rm.items.map(it => itemRow(it, 'rack', `<button class="btn sm" data-act="rackTake" data-arg="${it.uid}">Take</button>`)).join('')}</div>
+      <div class="sheet-actions"><button class="btn" data-act="closeSheet">Leave them</button></div>`, 'rack'); },
+  rackTake: a => { const r = R(), rm = r.floor.rooms[r.floor.cur]; if(rm.t!=='armory' || rm.done) return; const it = rm.items.find(x => x.uid===a); if(!it) return;
+    if(!roomFor(it)){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; }
+    addToBag(it); rm.done = true; rm.items = []; r.msg = `You take the ${itemName(it)}.`; closeSheet(); save(); render(); },
+  harvest: () => { const r = R(), fl = r.floor, rm = fl.rooms[fl.cur]; if(rm.t!=='harvest' || rm.done) return; rm.done = true;
+    const n = rand(2,4), t = runTrack(); t.mats[rm.mat] = (t.mats[rm.mat]||0) + n;
+    if(Math.random() < .25){ rm.t = 'mon'; rm.done = false; rm.m = genMonster(r.depth, false, {fams: MATS[rm.mat].fams}); toast(`You find ${n} ${MATS[rm.mat].name}, and something finds you!`); save(); return startEncounter(fl.cur); }
+    r.msg = `You gather ${n} ${MATS[rm.mat].name}. They’ll count once you’re home.`; save(); updateExplore(); },
+  bestiary: () => openSheet(bestiarySheet(), 'bestiary'),
+  beast: a => openSheet(beastSheet(a), 'beast'),
   buyPerk: a => { const p = PERKS[a]; if(!p) return; const l = perk(a); if(l >= p.max) return; const c = perkCost(a), need = perkRep(a);
     if(S.hero.gold < c || ((S.rep||{})[p.b]||0) < need) return;
     S.hero.gold -= c; S.perks = S.perks || {}; S.perks[a] = l+1;
