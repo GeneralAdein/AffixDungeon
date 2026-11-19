@@ -1822,15 +1822,15 @@ function stats(){ S.stats = S.stats || {runs:0, deaths:0, mostGold:0, mostLost:0
 function trackHit(d){ const s = stats(); s.dealt += d; if(d > s.bestHit) s.bestHit = d; }
 function trackTaken(d){ stats().taken += d; }
 /* Bestiary mastery: the more of a species you kill, the better you fight it. */
-const MASTERY = [{n:10, dmg:5, guard:0}, {n:50, dmg:10, guard:5}, {n:150, dmg:15, guard:10}];
+const MASTERY = [{n:100, dmg:1, guard:0}, {n:500, dmg:5, guard:0}, {n:1000, dmg:15, guard:0}, {n:10000, dmg:25, guard:0}];
 function mastery(base){ const k = (stats().kills[base]||0); let r = {dmg:0, guard:0, tier:0}; MASTERY.forEach((t,i) => { if(k >= t.n) r = {dmg:t.dmg, guard:t.guard, tier:i+1}; }); return r; }
 function bestiarySheet(){
   const s = stats(), all = Object.keys(MONSTERS).sort((a,b) => MONSTERS[a].fam.localeCompare(MONSTERS[b].fam) || MONSTERS[a].min - MONSTERS[b].min);
   const found = all.filter(k => s.kills[k]).length;
   return `<div class="grab"></div><h3 class="sheet-title">Bestiary</h3>
-    <p class="sub">${found} of ${all.length} species discovered. Kill 10, 50 and 150 of a species to master it: you deal more damage to it, and later take less.</p>
+    <p class="sub">${found} of ${all.length} species discovered. Kill 100, 500, 1,000 and 10,000 of a species to master it, dealing 1%, 5%, 15% and finally 25% more damage to it.</p>
     <div class="bgrid">${all.map(k => { const n = s.kills[k]||0, t = mastery(k).tier;
-      return n ? `<button class="bcell" data-act="beast" data-arg="${k}"><img src="${ART[k]}" alt=""><span>${MONSTERS[k].name}</span><b>${n.toLocaleString()}</b><i class="stars">${'★'.repeat(t)}${'☆'.repeat(3-t)}</i></button>`
+      return n ? `<button class="bcell" data-act="beast" data-arg="${k}"><img src="${ART[k]}" alt=""><span>${MONSTERS[k].name}</span><b>${n.toLocaleString()}</b><i class="stars">${'★'.repeat(t)}${'☆'.repeat(MASTERY.length-t)}</i></button>`
                : `<div class="bcell locked"><img src="${ART[k]}" alt=""><span>???</span></div>`; }).join('')}</div>
     <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
@@ -1838,7 +1838,7 @@ function beastSheet(k){
   const b = MONSTERS[k], s = stats(), n = s.kills[k]||0, ma = mastery(k), tr = b.trait && TRAITS[b.trait], seen = (s.seen||{})[k] || {pre:[], suf:[]};
   const abil = FAMILY[b.fam].abil.map(id => `<li><b>${ABIL[id].name}</b> (from level ${ABIL[id].min}). ${ABIL[id].desc}</li>`).join('');
   const aff = [...seen.pre.map(id => MPRE[id] && MPRE[id].name), ...seen.suf.map(id => MSUF[id] && MSUF[id].name)].filter(Boolean);
-  const tiers = MASTERY.map((t,i) => `<li class="${n >= t.n ? 'up' : 'sub'}">${n >= t.n ? '★' : '☆'} ${t.n} kills: +${t.dmg}% damage to it${t.guard ? `, −${t.guard}% damage from it` : ''}</li>`).join('');
+  const tiers = MASTERY.map((t,i) => `<li class="${n >= t.n ? 'up' : 'sub'}">${n >= t.n ? '★' : '☆'} ${t.n.toLocaleString()} kills: +${t.dmg}% damage to it${t.guard ? `, −${t.guard}% damage from it` : ''}</li>`).join('');
   return `<div class="grab"></div>
     <div class="beasthead"><img src="${ART[k]}" alt=""><div><h3 class="sheet-title">${b.name}</h3><p class="sub">${cap(FAMILY[b.fam].name)} family${b.type ? ', '+b.type : ''}. Found from floor ${b.min}.${b.w !== undefined && b.w < .5 ? ' Rare.' : ''}</p><p>“${b.flavor || 'Little is known about it.'}”</p></div></div>
     <div class="affix"><h4>Slain<small>${n.toLocaleString()}</small></h4><ul>${tiers}</ul></div>
