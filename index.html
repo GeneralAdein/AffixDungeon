@@ -691,6 +691,11 @@ svg[shape-rendering]{display:block}
 .beasthead{display:flex;gap:12px;align-items:center;margin-bottom:8px}
 .beasthead img{width:96px;height:96px;image-rendering:pixelated;flex:none;background:#0b0b10;border:2px solid var(--line)}
 .beasthead p{margin-top:4px;line-height:1.15}
+.affcols{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.affcol h5{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:16px;margin-bottom:2px;color:var(--muted)}
+.affcol ul{list-style:none;padding:0;margin:0}
+.affcol li{font-size:18px;line-height:1.15}
+.affcol li::before{content:none}
 
 @media (prefers-reduced-motion: reduce){.npc,.npc img,.lampglow,.smoke,.spark,.tbadge{animation:none !important}}
 .townwrap{overflow:hidden;display:flex;align-items:center;justify-content:center;container-type:size;background:#0c140e}
@@ -1837,14 +1842,17 @@ function bestiarySheet(){
 function beastSheet(k){
   const b = MONSTERS[k], s = stats(), n = s.kills[k]||0, ma = mastery(k), tr = b.trait && TRAITS[b.trait], seen = (s.seen||{})[k] || {pre:[], suf:[]};
   const abil = FAMILY[b.fam].abil.map(id => `<li><b>${ABIL[id].name}</b> (from level ${ABIL[id].min}). ${ABIL[id].desc}</li>`).join('');
-  const aff = [...seen.pre.map(id => MPRE[id] && MPRE[id].name), ...seen.suf.map(id => MSUF[id] && MSUF[id].name)].filter(Boolean);
+  const pres = seen.pre.map(id => MPRE[id]).filter(Boolean), sufs = seen.suf.map(id => MSUF[id]).filter(Boolean);
+  // green weakens the monster, red makes it more dangerous (weakening affixes also lower its experience)
+  const weakens = a => !!(a.mul && a.mul.xp !== undefined && a.mul.xp < 1);
+  const affCol = (title, list) => `<div class="affcol"><h5>${title} <small>${list.length}</small></h5>${list.length ? `<ul>${list.map(a => `<li class="${weakens(a) ? 'up' : 'down'}">${a.name}</li>`).join('')}</ul>` : '<p class="sub">None yet</p>'}</div>`;
   const tiers = MASTERY.map((t,i) => `<li class="${n >= t.n ? 'up' : 'sub'}">${n >= t.n ? '★' : '☆'} ${t.n.toLocaleString()} kills: +${t.dmg}% damage to it${t.guard ? `, −${t.guard}% damage from it` : ''}</li>`).join('');
   return `<div class="grab"></div>
     <div class="beasthead"><img src="${ART[k]}" alt=""><div><h3 class="sheet-title">${b.name}</h3><p class="sub">${cap(FAMILY[b.fam].name)} family${b.type ? ', '+b.type : ''}. Found from floor ${b.min}.${b.w !== undefined && b.w < .5 ? ' Rare.' : ''}</p><p>“${b.flavor || 'Little is known about it.'}”</p></div></div>
     <div class="affix"><h4>Slain<small>${n.toLocaleString()}</small></h4><ul>${tiers}</ul></div>
     ${tr ? `<div class="affix trait"><h4>${tr.name}<small>Species trait</small></h4><ul><li>${tr.desc}</li></ul></div>` : ''}
     <div class="affix"><h4>Abilities<small>${cap(FAMILY[b.fam].name)} family</small></h4><ul>${abil}</ul></div>
-    <div class="affix"><h4>Affixes seen<small>${aff.length}</small></h4><ul>${aff.length ? `<li>${aff.join(', ')}</li>` : '<li class="sub">None yet. Prefixes and suffixes you meet on this species are recorded here.</li>'}</ul></div>
+    <div class="affix"><h4>Affixes seen<small>${pres.length + sufs.length}</small></h4><div class="affcols">${affCol('Prefixes', pres)}${affCol('Suffixes', sufs)}</div></div>
     <div class="sheet-actions"><button class="btn" data-act="bestiary">Back</button><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
 function trackKill(m){
