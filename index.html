@@ -2875,12 +2875,17 @@ function genFloor(depth){
   const {dist, par} = bfsRooms(fl, start);
   const keys = Object.keys(fl.rooms).filter(k => k !== start);
   const far = keys.slice().sort((a,b) => dist[b] - dist[a]);
-  const stairs = far[0]; fl.rooms[stairs].t = 'stairs'; fl.rooms[stairs].done = true;
+  // the stairs sit in a dead end, so the room before them is the only way in; that's where a champion stands guard
+  const deadEnd = k => neighbors(fl,k).length === 1 && neighbors(fl,k)[0] !== start;
+  const stairs = far.find(deadEnd) || far[0];
+  for(const n of neighbors(fl, stairs).slice(1)){ const l = stairs < n ? stairs+'|'+n : n+'|'+stairs; fl.links.splice(fl.links.indexOf(l), 1); }
+  fl.rooms[stairs].t = 'stairs'; fl.rooms[stairs].done = true;
+  const gate = neighbors(fl, stairs)[0];
   const free = () => shuffle(keys.filter(k => fl.rooms[k].t === 'empty'));
   const leaves = () => shuffle(keys.filter(k => fl.rooms[k].t === 'empty' && neighbors(fl,k).length === 1));
   const set = (k, t, extra={}) => { if(!k) return; Object.assign(fl.rooms[k], {t}, extra); };
   const monOpts = {fams: fl.pre==='haunted' && Math.random() < .8 ? ['undead'] : null, lvl: (fl.pre==='ancient' ? 1 : 0) + (fl.doom ? 2 : 0) + (hasDoom(fl,'teeming') ? 3 : 0), cursed: hasDoom(fl,'cursed'), lightless: hasDoom(fl,'lightless'), starving: hasDoom(fl,'starving')};
-  if(depth % 3 === 0 || doomFloor(depth)){ const g = par[stairs]; if(g && g !== start) set(g, 'mon', {m:genMonster(depth, true, monOpts)}); }
+  if(depth % 3 === 0 || doomFloor(depth)){ if(gate && gate !== start) set(gate, 'mon', {m:genMonster(depth, true, monOpts)}); }
   for(let i=0; i<2 + (fl.suf==='riches' ? 2 : 0); i++) set(leaves()[0] || free()[0], 'chest');
   for(let i=0; i<1 + (fl.suf==='traps' ? 3 : 0); i++) set(free()[0], 'trap');
   const dark = hasDoom(fl,'lightless') || hasDoom(fl,'starving');
@@ -3064,7 +3069,7 @@ function enterRoom(){
     rm.ambushed = true; rm.t = 'mon'; rm.m = genMonster(r.depth, false);
     toast('Something was waiting for you!'); save(); return startEncounter(fl.cur);
   }
-  if(rm.t==='mon' && !rm.done){ save(); return startEncounter(fl.cur); }
+  if(rm.t==='mon' && !rm.done){ if(rm.m.champion) toast('A champion bars the way to the stairs!'); save(); return startEncounter(fl.cur); }
   save(); updateExplore(true);
 }
 function retreat(){
