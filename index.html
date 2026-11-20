@@ -677,6 +677,26 @@ svg[shape-rendering]{display:block}
 .statline.pending b{color:var(--good)}
 
 
+/* ===== Floor arrival card ===== */
+.floorpop{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(6,5,9,.72);animation:fpin .2s steps(3)}
+.floorpop.out{opacity:0;transition:opacity .18s}
+.fpcard{width:100%;max-width:360px;background:#16151e;border:3px solid #c9bfa6;box-shadow:0 0 0 3px #16151e, 0 0 0 5px #5a5446;padding:18px 18px 14px;text-align:center;color:#ebe2cc}
+.fpkicker{font-size:18px;letter-spacing:3px;text-transform:uppercase;color:#a9a08a}
+.fpnum{font-family:'Pixelify Sans','VT323',monospace;font-weight:700;font-size:84px;line-height:1;color:#e0743a;margin:2px 0}
+.fpname{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:22px;line-height:1.15;margin-bottom:12px}
+.fpnotes{list-style:none;margin:0;padding:0;text-align:left;display:grid;gap:8px}
+.fpnotes li{border:2px solid #3a3848;padding:6px 10px;font-size:18px;line-height:1.15;background:#1d1b26}
+.fpnotes li b{display:block;font-weight:400;font-size:19px;color:#f2c444}
+.fpnotes li span{color:#c9bfa6}
+.fpnotes li.doom{border-color:#d8383a}.fpnotes li.doom b{color:#ff6a5a}
+.fpnotes li.boon b{color:#b07ae0}
+.fpnotes li.warn b{color:#e0743a}
+.fpnotes li.stone b{color:#7ad8e8}
+.fpnotes li.plain b{color:#c9bfa6}
+.fptap{margin-top:12px;font-size:16px;color:#8a8270}
+.floorpop.doomed .fpcard{border-color:#d8383a}.floorpop.doomed .fpnum{color:#ff4a3a}
+.floorpop.abyssal .fpcard{border-color:#a070ff}.floorpop.abyssal .fpnum{color:#c070ff}
+@keyframes fpin{from{opacity:0}to{opacity:1}}
 /* ===== New rooms and the Bestiary ===== */
 .bestbtn{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px 10px;background:var(--panel);border:2px solid var(--frame);color:var(--ink);font:inherit;cursor:pointer}
 .bestbtn .bimgs{display:flex;flex:none}
@@ -3032,6 +3052,31 @@ function newFloor(depth){
 }
 
 /* ============ run flow ============ */
+/* A big card when you arrive on a floor: what it is and what's waiting. Stays until you tap. */
+function floorIntro(){
+  const r = R(); if(!r || !r.floor) return;
+  const fl = r.floor, d = r.depth, notes = [];
+  if(fl.doom) notes.push(['doom', FDOOM[fl.doom].name, FDOOM[fl.doom].desc]);
+  if(fl.pre) notes.push(['afx', FPRE[fl.pre].name, FPRE[fl.pre].desc]);
+  if(fl.suf) notes.push(['afx', FSUF[fl.suf].name, FSUF[fl.suf].desc]);
+  for(const b of (r.boons||[])) notes.push(['boon', BOONS[b].name, `${cap(BOONS[b].good)}, but ${BOONS[b].bad}.`]);
+  if(d % 3 === 0) notes.push(['warn', 'Champion', 'A champion guards the stairs on this floor.']);
+  if(d >= 20 && stoneToFind()) notes.push(['stone', 'Old stones', 'Somewhere this deep, a stone from the Old Wall could be hiding.']);
+  if(!fl.pre && !fl.suf && !fl.doom) notes.push(['plain', 'No modifiers', 'An ordinary floor. Find the stairs, or explore for treasure.']);
+  const el = document.createElement('div');
+  el.className = 'floorpop' + (fl.doom ? ' doomed' : '') + (r.abyss ? ' abyssal' : '');
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', `Floor ${d}`);
+  el.innerHTML = `<div class="fpcard">
+    <div class="fpkicker">${r.abyss ? 'The Abyss · ' : ''}Floor</div>
+    <div class="fpnum">${d}</div>
+    <div class="fpname">${floorName(fl, d)}</div>
+    <ul class="fpnotes">${notes.map(([c,t,x]) => `<li class="${c}"><b>${t}</b><span>${x}</span></li>`).join('')}</ul>
+    <div class="fptap">Tap anywhere to begin</div></div>`;
+  const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 180); };
+  el.addEventListener('click', close);
+  document.querySelectorAll('.floorpop').forEach(x => x.remove());
+  document.body.appendChild(el);
+}
 function enterDungeon(abyss){
   closeSheet();
   S.run = {depth:1, mon:null, pg:0, mg:0, log:[], pb:{}, mb:{}, phase:'explore', loot:[], kills:0, abyss: !!(abyss && S.abyss)};
@@ -3040,7 +3085,7 @@ function enterDungeon(abyss){
   S.hero.deepest = Math.max(S.hero.deepest, 1);
   stats().runs++; runTrack();
   save(); render(); $('#view').scrollTop = 0;
-  toast(`${S.run.abyss ? 'The Abyss, floor' : 'Floor'} 1: ${floorName(S.run.floor, 1)}`);
+  floorIntro();
 }
 function startEncounter(src){
   const r = R();
@@ -3487,7 +3532,7 @@ const ACT = {
   descend: () => { const r = R(); if(moving) return; closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
     const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
     runTrack().deepest = Math.max(runTrack().deepest, r.depth);
-    newFloor(r.depth); save(); render(); $('#view').scrollTop = 0; toast(`Floor ${r.depth}: ${floorName(r.floor, r.depth)}`); },
+    newFloor(r.depth); save(); render(); $('#view').scrollTop = 0; floorIntro(); },
   goRoom: a => goRoom(a),
   fightRoom: () => { const r = R(); if(r && r.floor.rooms[r.floor.cur].t==='mon') startEncounter(r.floor.cur); },
   retreat: () => retreat(),
