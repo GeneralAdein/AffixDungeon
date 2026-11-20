@@ -2733,7 +2733,7 @@ function genFloor(depth){
   const start = add(0,0); fl.rooms[start].t = 'start'; fl.rooms[start].done = true;
   // grow a branching tree: keep picking a room and pushing a corridor out of it in a random direction
   let guard = 0;
-  while(Object.keys(fl.rooms).length < want && guard++ < 2000){
+  while(Object.keys(fl.rooms).length < want && guard++ < 8000){
     const from = pick(Object.keys(fl.rooms)), [x,y] = unkey(from), [dx,dy] = pick(DIRS);
     const nk = key(x+dx, y+dy);
     if(fl.rooms[nk]) continue;
