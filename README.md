@@ -21,6 +21,7 @@ Open `index.html` in any modern browser. It's a single self-contained file: no b
 - **Monster affixes:** 29 prefixes and 21 suffixes, good and bad, including humanoid-only prefixes (Dark, Evil, Hideous, Bulked, Avenged, Holy).
 - **Gear in 8 slots** (weapon, shield, head, body, hands, feet, neck, ring), with cloth, light and heavy armor builds, two-handed weapons, and dozens of positive, negative and mixed item affixes.
 - **Five attributes** (Strength, Dexterity, Vitality, Intelligence, Luck) with points to spend each level, and a Character screen that shows exactly what's affecting every stat.
+- **The Old Wall** in the tavern has eight empty sockets. Eight stones are hidden in glimmering crevices below floor 20, rarer the shallower you are. Carry one home alive and set it in the wall; die first and it slips back into the dark. Set all eight to permanently unlock **the Abyss**, a second dungeon about ten times harder (monsters 30 levels up) with far better loot (45 item levels up).
 - **A Bestiary** in the Guild Hall: every species you've slain with its lore, trait, abilities and the affixes you've seen on it. Killing 100, 500, 1,000 and 10,000 of a species masters it, for 1%, 5%, 15% and 25% more damage against it.
 - **Scrolls with affixes:** 11 scroll spells (Flame, Frost, Lightning, Venom, Hex, Sundering, Leech, Holy, Ward, Haste, Mending, plus Escape) that roll prefixes and suffixes like everything else, such as a Quickened Flame Scroll of Venom or a Volatile Lightning Scroll of Backlash.
 - **Stacking consumables** (up to 10 per bag slot) and a **Potion Belt** that holds potions outside the bag, expanded at the Apothecary.
@@ -39,6 +40,7 @@ art-tools/          Python scripts that generate the 48x48 monster sprites
   folk1.py-folk3.py Hand-built humanoids, one function per character
   humans.py         Older template humanoid generator (also newfolk.py)
   dragons.py        Parametric dragon generator
+  cut_wall.py       Cuts the Old Wall and its eight stones out of source-art/old-wall.jpg and finds the sockets
   cut_portraits.py  Cuts the townsfolk portraits out of source-art/portraits-set-1.jpg at their native pixel grid
   cut_buildings.py  Cuts town buildings out of an art sheet at their native pixel grid (python3 cut_buildings.py source-art/buildings-set-2.jpg sheet2 out.json)
   iso_scene2.py     Paints the town ground: grass, cobbled streets, plaza, trees, lamp posts
