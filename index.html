@@ -1504,7 +1504,9 @@ function monStats(m){
   if(m.pre) applyMods(s, MPRE[m.pre]);
   if(m.suf) applyMods(s, MSUF[m.suf]);
   if(m.champion){ s.hp *= 1.35; s.atk *= 1.15; s.xp *= 1.8; s.gold *= 1.8; }
-  if(m.cursed){ s.hp *= 1.5; s.atk *= 1.25; s.xp *= 1.5; s.gold *= 1.5; }
+  if(m.cursed){ s.hp *= 2; s.atk *= 1.5; s.xp *= 2; s.gold *= 2; }
+  if(m.lightless){ s.dodge = (s.dodge||0) + 12; s.atk *= 1.25; }
+  if(m.ravenous){ s.hp *= 1.4; }
   if(m.elite){ s.hp *= 1.4; s.atk *= 1.15; s.xp *= 2; s.gold *= 2; }
   s.hp = Math.max(1, Math.round(s.hp)); s.crit = Math.max(0, s.crit);
   const tr = TRAITS[b.trait]; if(tr){ applyMods(s, tr); if(tr.set) Object.assign(s, tr.set); }
@@ -1664,7 +1666,7 @@ function genMonster(depth, champion, opts={}){
   const apool = FAMILY[b.fam].abil.filter(id => ABIL[id].min <= lvl);
   const count = lvl >= 8 ? 3 : lvl >= 4 ? 2 : 1;
   const abilities = shuffle(apool).slice(0, count);
-  const m = {uid:uid(), base, lvl, rarity, pre, suf, abilities, champion:!!champion, cursed:!!opts.cursed, hp:0};
+  const m = {uid:uid(), base, lvl, rarity, pre, suf, abilities, champion:!!champion, cursed:!!opts.cursed, lightless:!!opts.lightless, ravenous:!!opts.starving, hp:0};
   const ms = monStats(m);
   m.hp = ms.wounded ? Math.max(1, Math.round(ms.hp*.6)) : ms.hp;
   return m;
@@ -2522,7 +2524,7 @@ function monPanel(m, tags){
   const b = MONSTERS[m.base], ms = monStats(m), tr = TRAITS[b.trait];
   const sec = [];
   if(m.champion) sec.push(`<div class="psec"><b class="champ">Champion</b><ul><li class="down">+35% HP</li><li class="down">+15% Dmg</li></ul></div>`);
-  if(m.cursed) sec.push(`<div class="psec"><b class="down">Cursed</b><ul><li class="down">+50% HP</li><li class="down">+25% Dmg</li></ul></div>`);
+  if(m.cursed) sec.push(`<div class="psec"><b class="down">Cursed</b><ul><li class="down">+100% HP</li><li class="down">+50% Dmg</li></ul></div>`);
   if(m.elite) sec.push(`<div class="psec"><b class="champ">Elite</b><ul><li class="down">+40% HP</li><li class="down">+15% Dmg</li><li class="up">Rare drop</li></ul></div>`);
   if(m.key) sec.push(`<div class="psec"><b class="champ">Key carrier</b><ul><li class="up">Drops the vault key</li></ul></div>`);
   { const ma = mastery(m.base); if(ma.dmg) sec.push(`<div class="psec"><b class="up">Mastery</b><ul><li class="up">+${ma.dmg}% Dmg to it</li>${ma.guard ? `<li class="up">−${ma.guard}% Dmg from it</li>` : ''}</ul></div>`); }
@@ -2564,7 +2566,7 @@ function affixOverlay(m){
   const add = (title, cls, body, n) => { box.push(`<div class="ao"><b class="${cls}">${title}</b>${body}</div>`); lines += n; };
   const count = a => (a.mul ? Object.entries(a.mul).filter(([k,v]) => k!=='xp' && Math.round((v-1)*100)).length : 0) + (a.add ? Object.keys(a.add).length : 0) + (a.flag ? a.flag.length : 0);
   if(m.champion) add('Champion', 'afn champ', '<span class="down">+35% HP</span><span class="down">+15% Dmg</span>', 2);
-  if(m.cursed) add('Cursed', 'afn champ', '<span class="down">+50% HP</span><span class="down">+25% Dmg</span>', 2);
+  if(m.cursed) add('Cursed', 'afn champ', '<span class="down">+100% HP</span><span class="down">+50% Dmg</span>', 2);
   const tr = TRAITS[MONSTERS[m.base].trait]; if(tr) add(tr.name, 'afn trait', `<span class="${tr.good?'up':'down'}">${tr.short}</span>`, 1);
   if(m.pre) add(MPRE[m.pre].name, 'afx', affixShort(MPRE[m.pre]), count(MPRE[m.pre]));
   if(m.suf) add(MSUF[m.suf].name, 'afx', affixShort(MSUF[m.suf]), count(MSUF[m.suf]));
@@ -2721,15 +2723,18 @@ const key = (x,y) => x+','+y;
 const unkey = k => k.split(',').map(Number);
 function floorName(fl, depth){
   const noun = FLOOR_NOUNS[Math.min(FLOOR_NOUNS.length-1, Math.floor((depth-1)/2))];
-  return `${fl.doom ? FDOOM[fl.doom].name+' ' : ''}${fl.pre ? FPRE[fl.pre].name+' ' : ''}${noun}${fl.suf ? ' '+FSUF[fl.suf].name : ''}`;
+  return `${fl.doom ? FDOOM[fl.doom].name+' ' : ''}${fl.doom2 ? FDOOM[fl.doom2].name+' ' : ''}${fl.pre ? FPRE[fl.pre].name+' ' : ''}${noun}${fl.suf ? ' '+FSUF[fl.suf].name : ''}`;
 }
 /* Dooms: harsh modifiers that always hit every 10th floor, on top of the run's own affixes. */
 const FDOOM = {
-  cursed:{name:'Cursed', desc:'Every monster has 50% more health and hits 25% harder.'},
-  lightless:{name:'Lightless', desc:'Every monster strikes first, and there are no campfires or shrines.'},
-  teeming:{name:'Teeming', desc:'Monsters fill twice as many rooms and are two levels higher.'},
-  starving:{name:'Starving', desc:'Potions and healing scrolls heal half as much.'}
+  cursed:{name:'Cursed', desc:'Every monster has double health and hits 50% harder.'},
+  lightless:{name:'Lightless', desc:'Every monster strikes first, hits 25% harder and dodges more. No campfires or shrines.'},
+  teeming:{name:'Teeming', desc:'Monsters fill twice as many rooms and are three levels higher.'},
+  starving:{name:'Starving', desc:'Ravenous monsters have 40% more health. Potions and healing scrolls heal half as much. No campfires or shrines.'}
 };
+/* every 10th floor: one doom, and from floor 30 on, two. Doom floors also always have a champion on the stairs. */
+const hasDoom = (fl, id) => !!fl && (fl.doom === id || fl.doom2 === id);
+const doomFloor = d => d % 10 === 0;
 function rollRunAffixes(r){
   r.fpre = Math.random() < .65 ? pick(Object.keys(FPRE)) : null;
   r.fsuf = Math.random() < .55 ? pick(Object.keys(FSUF)) : null;
@@ -2746,7 +2751,7 @@ function genFloor(depth){
   // the dungeon's prefix and suffix are rolled once per run and hold for every floor
   const run = R(); if(run){ fl.pre = run.fpre || null; fl.suf = run.fsuf || null; }
   // every 10th floor always carries a doom
-  if(depth % 10 === 0) fl.doom = pick(Object.keys(FDOOM));
+  if(doomFloor(depth)){ const ds = shuffle(Object.keys(FDOOM)); fl.doom = ds[0]; if(depth >= 30) fl.doom2 = ds[1]; }
   const want = Math.round(clamp(12 + depth*1.5, 12, 27));
   const add = (x,y) => { const k = key(x,y); fl.rooms[k] = {x, y, t:'empty'}; return k; };
   const link = (a,b) => { const l = a < b ? a+'|'+b : b+'|'+a; if(!fl.links.includes(l)) fl.links.push(l); };
@@ -2772,19 +2777,20 @@ function genFloor(depth){
   const free = () => shuffle(keys.filter(k => fl.rooms[k].t === 'empty'));
   const leaves = () => shuffle(keys.filter(k => fl.rooms[k].t === 'empty' && neighbors(fl,k).length === 1));
   const set = (k, t, extra={}) => { if(!k) return; Object.assign(fl.rooms[k], {t}, extra); };
-  const monOpts = {fams: fl.pre==='haunted' && Math.random() < .8 ? ['undead'] : null, lvl: (fl.pre==='ancient' ? 1 : 0) + (fl.doom==='teeming' ? 2 : 0), cursed: fl.doom==='cursed'};
-  if(depth % 3 === 0){ const g = par[stairs]; if(g && g !== start) set(g, 'mon', {m:genMonster(depth, true, monOpts)}); }
+  const monOpts = {fams: fl.pre==='haunted' && Math.random() < .8 ? ['undead'] : null, lvl: (fl.pre==='ancient' ? 1 : 0) + (fl.doom ? 2 : 0) + (hasDoom(fl,'teeming') ? 3 : 0), cursed: hasDoom(fl,'cursed'), lightless: hasDoom(fl,'lightless'), starving: hasDoom(fl,'starving')};
+  if(depth % 3 === 0 || doomFloor(depth)){ const g = par[stairs]; if(g && g !== start) set(g, 'mon', {m:genMonster(depth, true, monOpts)}); }
   for(let i=0; i<2 + (fl.suf==='riches' ? 2 : 0); i++) set(leaves()[0] || free()[0], 'chest');
   for(let i=0; i<1 + (fl.suf==='traps' ? 3 : 0); i++) set(free()[0], 'trap');
-  if(fl.doom !== 'lightless' && (fl.suf==='rest' || Math.random() < .45)) set(leaves()[0] || free()[0], 'fire');
-  if(fl.doom !== 'lightless' && (fl.suf==='rest' || Math.random() < .35)) set(leaves()[0] || free()[0], 'shrine');
+  const dark = hasDoom(fl,'lightless') || hasDoom(fl,'starving');
+  if(!dark && (fl.suf==='rest' || Math.random() < .45)) set(leaves()[0] || free()[0], 'fire');
+  if(!dark && (fl.suf==='rest' || Math.random() < .35)) set(leaves()[0] || free()[0], 'shrine');
   if(fl.suf==='trade' || (depth > 1 && Math.random() < .3)) set(leaves()[0] || free()[0], 'merchant', {items:[genItem(depth,'potion'), genItem(depth), genItem(depth), genItem(depth,'scroll')]});
   if(depth >= 2 && Math.random() < .15) set(leaves()[0] || free()[0], 'vault');
   { const avail = Object.keys(BOONS).filter(b => !((run && run.boons) || []).includes(b)); if(depth >= 2 && avail.length && Math.random() < .1) set(free()[0], 'idol', {boon: pick(avail)}); }
   if(Math.random() < .12) set(leaves()[0] || free()[0], 'armory', {items: shuffle(['weapon','shield','head','body','hands','feet','neck','ring']).slice(0,3).map(k => genItem(depth, k))});
   if(Math.random() < stoneChance(depth)){ const sid = stoneToFind(); if(sid) set(leaves()[0] || free()[0], 'crevice', {stone: sid}); }
   { const gq = activeQuests().find(q => q.kind==='gather'); if(gq && Math.random() < .3) set(leaves()[0] || free()[0], 'harvest', {mat: gq.target}); }
-  const share = Math.min(.85, (fl.pre==='infested' ? .55 : fl.pre==='quiet' ? .2 : .38) * (fl.doom==='teeming' ? 2 : 1));
+  const share = Math.min(.85, (fl.pre==='infested' ? .55 : fl.pre==='quiet' ? .2 : .38) * (hasDoom(fl,'teeming') ? 2 : 1));
   const rest = free(); const nMon = Math.max(2, Math.round(rest.length * share));
   for(let i=0; i<nMon && i<rest.length; i++) set(rest[i], 'mon', {m:genMonster(depth, false, monOpts)});
   const monRooms = shuffle(keys.filter(k => fl.rooms[k].t==='mon' && !fl.rooms[k].m.champion));
@@ -3036,13 +3042,13 @@ function merchantSheet(o){
 }
 function floorInfoSheet(){
   const r = R(), fl = r.floor, lines = [];
-  if(fl.doom) lines.push(`<div class="affix"><h4 class="down">${FDOOM[fl.doom].name}<small>Doom of floor ${r.depth}</small></h4><ul><li class="down">${FDOOM[fl.doom].desc}</li></ul></div>`);
+  for(const dm of [fl.doom, fl.doom2].filter(Boolean)) lines.push(`<div class="affix"><h4 class="down">${FDOOM[dm].name}<small>Doom of floor ${r.depth}</small></h4><ul><li class="down">${FDOOM[dm].desc}</li></ul></div>`);
   if(fl.pre) lines.push(`<div class="affix"><h4>${FPRE[fl.pre].name}<small>Dungeon prefix, all run</small></h4><ul><li>${FPRE[fl.pre].desc}</li></ul></div>`);
   if(fl.suf) lines.push(`<div class="affix"><h4>${FSUF[fl.suf].name}<small>Dungeon suffix, all run</small></h4><ul><li>${FSUF[fl.suf].desc}</li></ul></div>`);
   return `<div class="grab"></div><h3 class="sheet-title">Floor ${r.depth}: ${floorName(fl, r.depth)}</h3>
     ${lines.length ? lines.join('') : '<p class="sub">No modifiers this run. Every 10th floor still brings a doom.</p>'}
     ${(r.boons||[]).map(b => `<div class="affix"><h4>${BOONS[b].name}<small>Idol bargain, all run</small></h4><ul><li class="up">${cap(BOONS[b].good)}</li><li class="down">${cap(BOONS[b].bad)}</li></ul></div>`).join('')}
-    <p class="sub" style="margin-top:8px">Find the stairs to go deeper, or explore other rooms for treasure. You won’t know what’s in a room, or where its doors lead, until you step inside.${r.depth%3===0 ? ' A champion guards the stairs on this floor.' : ''}</p>
+    <p class="sub" style="margin-top:8px">Find the stairs to go deeper, or explore other rooms for treasure. You won’t know what’s in a room, or where its doors lead, until you step inside.${(r.depth%3===0 || doomFloor(r.depth)) ? ' A champion guards the stairs on this floor.' : ''}</p>
     <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
 function newFloor(depth){
@@ -3057,10 +3063,12 @@ function floorIntro(){
   const r = R(); if(!r || !r.floor) return;
   const fl = r.floor, d = r.depth, notes = [];
   if(fl.doom) notes.push(['doom', FDOOM[fl.doom].name, FDOOM[fl.doom].desc]);
+  if(fl.doom2) notes.push(['doom', FDOOM[fl.doom2].name, FDOOM[fl.doom2].desc]);
+  if(fl.doom) notes.push(['doom', 'Doom floor', 'Every monster here is two levels higher, and a champion guards the stairs.']);
   if(fl.pre) notes.push(['afx', FPRE[fl.pre].name, FPRE[fl.pre].desc]);
   if(fl.suf) notes.push(['afx', FSUF[fl.suf].name, FSUF[fl.suf].desc]);
   for(const b of (r.boons||[])) notes.push(['boon', BOONS[b].name, `${cap(BOONS[b].good)}, but ${BOONS[b].bad}.`]);
-  if(d % 3 === 0) notes.push(['warn', 'Champion', 'A champion guards the stairs on this floor.']);
+  if(d % 3 === 0 || doomFloor(d)) notes.push(['warn', 'Champion', 'A champion guards the stairs on this floor.']);
   if(d >= 20 && stoneToFind()) notes.push(['stone', 'Old stones', 'Somewhere this deep, a stone from the Old Wall could be hiding.']);
   if(!fl.pre && !fl.suf && !fl.doom) notes.push(['plain', 'No modifiers', 'An ordinary floor. Find the stairs, or explore for treasure.']);
   const el = document.createElement('div');
@@ -3094,7 +3102,7 @@ function startEncounter(src){
   r.pg = rand(0,25); r.mg = rand(0,45); r.mb = {}; r.pb.defend = false; r.phase = 'combat'; r.log = [];
   const n = monName(r.mon);
   log(champ ? `A champion blocks the stairs: <b>${n}</b>.` : `${article(n)} <b>${n}</b> appears.`);
-  if(monStats(r.mon).ambush || (r.floor && (r.floor.pre==='dark' || r.floor.doom==='lightless'))){ r.mg = 100 + rand(1,10); r.pg = rand(0,20); log('It strikes before you can react!'); }
+  if(monStats(r.mon).ambush || (r.floor && (r.floor.pre==='dark' || hasDoom(r.floor,'lightless')))){ r.mg = 100 + rand(1,10); r.pg = rand(0,20); log('It strikes before you can react!'); }
   if(monStats(r.mon).rattle){ r.pb.slow = {t:2}; log('A dry rattle freezes you in place.'); }
   if(monStats(r.mon).snare){ r.pb.slow = {t:2}; log('You step straight into a snare.'); }
   if(monStats(r.mon).stench){ r.pb.weak = {t:3}; log('Its presence makes your arms heavy.'); }
@@ -3394,7 +3402,7 @@ function useItem(id){
   closeSheet();
   const hs = heroStats();
   if(b.kind==='potion'){
-    const starve = (S.run && S.run.floor && S.run.floor.doom==='starving' ? .5 : 1) * (hasBoon('greed') ? .7 : 1);
+    const starve = (S.run && S.run.floor && hasDoom(S.run.floor,'starving') ? .5 : 1) * (hasBoon('greed') ? .7 : 1);
     const amt = Math.max(0, Math.min(Math.round(s.heal*starve), hs.maxhp - h.hp)); h.hp += amt;
     floatNum('+'+amt,'hero','heal');
     const extra = [];
@@ -3431,7 +3439,7 @@ function readScroll(it, s, inCombat){
       if(backfire){ const bd = Math.round(d*.5); h.hp = Math.max(1, h.hp - bd); floatNum(MINUS+bd,'hero'); ouch(); out.push(`it backfires for ${bd}`); }
       else { d = absorb(Math.round(d*(monStats(m).hide||1))); m.hp -= d; total += d; trackHit(d); if(d>0){ floatNum(d,'mon','crit'); pulse($('#monWrap'),'hit'); } }
     }
-    if(s.healp){ const v = Math.min(hs.maxhp - h.hp, Math.round(hs.maxhp*s.healp/100*mult*(S.run && S.run.floor && S.run.floor.doom==='starving' ? .5 : 1))); h.hp += v; floatNum('+'+v,'hero','heal'); if(rep===0) out.push(`you heal ${v}`); }
+    if(s.healp){ const v = Math.min(hs.maxhp - h.hp, Math.round(hs.maxhp*s.healp/100*mult*(S.run && hasDoom(S.run.floor,'starving') ? .5 : 1))); h.hp += v; floatNum('+'+v,'hero','heal'); if(rep===0) out.push(`you heal ${v}`); }
   }
   if(total) out.unshift(`it hits for ${total}`);
   if(m && m.hp > 0){
