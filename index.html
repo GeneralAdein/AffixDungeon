@@ -512,6 +512,9 @@ svg[shape-rendering]{display:block}
 .dun.explore{height:100%;min-height:520px}
 .roommap{position:relative;flex:1 1 auto;min-height:0;margin:6px 12px 0;border:2px solid var(--frame);overflow:auto;display:flex;background-color:#0b0b10;background-image:linear-gradient(rgba(6,6,10,.84),rgba(6,6,10,.84)),var(--floor);background-size:auto,96px 96px;image-rendering:pixelated;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .mapinner{position:relative;flex:none;margin:auto}
+.maplinks{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.maplinks line{stroke:#3a3848;stroke-width:4;stroke-linecap:round}
+.maplinks line.walked{stroke:#b8ae94}
 .ln{position:absolute;background:#3a3848}
 .ln.h{height:4px}
 .ln.v{width:4px}
@@ -2735,10 +2738,13 @@ function genFloor(depth){
     const nk = key(x+dx, y+dy);
     if(fl.rooms[nk]) continue;
     if(neighbors(fl, from).length >= 3 && Math.random() < .7) continue;   // keep it from becoming a solid block
+    { const [nx,ny] = [x+dx, y+dy], filled = (a,b) => !!fl.rooms[key(a,b)];   // avoid packing rooms into 2x2 blocks, so branches stretch out
+      const block = [[-1,-1],[1,-1],[-1,1],[1,1]].some(([sx,sy]) => filled(nx+sx,ny) && filled(nx,ny+sy) && filled(nx+sx,ny+sy));
+      if(block && Math.random() < .85) continue; }
     add(x+dx, y+dy); link(from, nk);
   }
   // a few extra corridors make loops, so there's more than one way around
-  for(const k of Object.keys(fl.rooms)){ const [x,y] = unkey(k); for(const [dx,dy] of DIRS){ const n = key(x+dx,y+dy); if(fl.rooms[n] && !linked(fl,k,n) && Math.random() < .12) link(k,n); } }
+  for(const k of Object.keys(fl.rooms)){ const [x,y] = unkey(k); for(const [dx,dy] of DIRS){ const n = key(x+dx,y+dy); if(fl.rooms[n] && !linked(fl,k,n) && Math.random() < .05) link(k,n); } }
   const {dist, par} = bfsRooms(fl, start);
   const keys = Object.keys(fl.rooms).filter(k => k !== start);
   const far = keys.slice().sort((a,b) => dist[b] - dist[a]);
@@ -2789,22 +2795,24 @@ function roomArt(rm){
 }
 
 /* ---------- the map ---------- */
-const GRID = 84, TILE = 62;
+const GRID = 112, TILE = 62, JIT = 14;
+/* each room sits a little off its grid point, the same way every time, so the map doesn't read as a table */
+function jitter(rm){ const h = (n) => { let v = Math.sin((rm.x*73.1 + rm.y*151.7 + n*17.3)) * 43758.5453; return v - Math.floor(v); }; return [Math.round((h(1)-.5)*2*JIT), Math.round((h(2)-.5)*2*JIT)]; }
 function mapHtml(){
   const r = R(), fl = r.floor, ks = Object.keys(fl.rooms).filter(k => shown(fl,k));
   const xs = ks.map(k => fl.rooms[k].x), ys = ks.map(k => fl.rooms[k].y);
   const minx = Math.min(...xs), miny = Math.min(...ys), maxx = Math.max(...xs), maxy = Math.max(...ys);
-  const pad = 40, W = (maxx-minx)*GRID + TILE + pad*2, H = (maxy-miny)*GRID + TILE + pad*2;
-  const pos = rm => [pad + (rm.x-minx)*GRID, pad + (rm.y-miny)*GRID];
+  const pad = 40 + JIT, W = (maxx-minx)*GRID + TILE + pad*2, H = (maxy-miny)*GRID + TILE + pad*2;
+  const pos = rm => { const [jx,jy] = jitter(rm); return [pad + (rm.x-minx)*GRID + jx, pad + (rm.y-miny)*GRID + jy]; };
   const cur = fl.rooms[fl.cur], locked = pending(cur);
   let lines = '', tiles = '';
   for(const l of fl.links){
     const [a,b] = l.split('|'); if(!fl.visited[a] && !fl.visited[b]) continue;   // you only learn a room's exits by standing in it
     const A = fl.rooms[a], B = fl.rooms[b], [ax,ay] = pos(A), [bx,by] = pos(B);
     const walked = fl.visited[a] && fl.visited[b];
-    if(A.y === B.y) lines += `<i class="ln h ${walked?'walked':''}" style="left:${Math.min(ax,bx)+TILE}px;top:${ay+TILE/2-2}px;width:${GRID-TILE}px"></i>`;
-    else lines += `<i class="ln v ${walked?'walked':''}" style="left:${ax+TILE/2-2}px;top:${Math.min(ay,by)+TILE}px;height:${GRID-TILE}px"></i>`;
+    lines += `<line x1="${ax+TILE/2}" y1="${ay+TILE/2}" x2="${bx+TILE/2}" y2="${by+TILE/2}" class="${walked?'walked':''}"/>`;
   }
+  lines = `<svg class="maplinks" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`;
   for(const k of ks){
     const rm = fl.rooms[k], [x,y] = pos(rm), known = typeKnown(fl,k), here = k === fl.cur;
     const adj = neighbors(fl, fl.cur).includes(k);
