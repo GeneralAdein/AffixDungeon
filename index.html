@@ -2704,16 +2704,16 @@ function genFloor(depth){
   if(fl.doom !== 'lightless' && (fl.suf==='rest' || Math.random() < .45)) set(leaves()[0] || free()[0], 'fire');
   if(fl.doom !== 'lightless' && (fl.suf==='rest' || Math.random() < .35)) set(leaves()[0] || free()[0], 'shrine');
   if(fl.suf==='trade' || (depth > 1 && Math.random() < .3)) set(leaves()[0] || free()[0], 'merchant', {items:[genItem(depth,'potion'), genItem(depth), genItem(depth), genItem(depth,'scroll')]});
-  if(depth >= 2 && Math.random() < .4) set(leaves()[0] || free()[0], 'vault');
-  { const avail = Object.keys(BOONS).filter(b => !((run && run.boons) || []).includes(b)); if(depth >= 2 && avail.length && Math.random() < .3) set(free()[0], 'idol', {boon: pick(avail)}); }
-  if(Math.random() < .35) set(leaves()[0] || free()[0], 'armory', {items: shuffle(['weapon','shield','head','body','hands','feet','neck','ring']).slice(0,3).map(k => genItem(depth, k))});
-  { const gq = activeQuests().find(q => q.kind==='gather'); if(gq && Math.random() < .7) set(leaves()[0] || free()[0], 'harvest', {mat: gq.target}); }
+  if(depth >= 2 && Math.random() < .15) set(leaves()[0] || free()[0], 'vault');
+  { const avail = Object.keys(BOONS).filter(b => !((run && run.boons) || []).includes(b)); if(depth >= 2 && avail.length && Math.random() < .1) set(free()[0], 'idol', {boon: pick(avail)}); }
+  if(Math.random() < .12) set(leaves()[0] || free()[0], 'armory', {items: shuffle(['weapon','shield','head','body','hands','feet','neck','ring']).slice(0,3).map(k => genItem(depth, k))});
+  { const gq = activeQuests().find(q => q.kind==='gather'); if(gq && Math.random() < .3) set(leaves()[0] || free()[0], 'harvest', {mat: gq.target}); }
   const share = Math.min(.85, (fl.pre==='infested' ? .55 : fl.pre==='quiet' ? .2 : .38) * (fl.doom==='teeming' ? 2 : 1));
   const rest = free(); const nMon = Math.max(2, Math.round(rest.length * share));
   for(let i=0; i<nMon && i<rest.length; i++) set(rest[i], 'mon', {m:genMonster(depth, false, monOpts)});
   const monRooms = shuffle(keys.filter(k => fl.rooms[k].t==='mon' && !fl.rooms[k].m.champion));
   // one marked elite: a rare monster with extra levels and a guaranteed rare drop
-  if(depth >= 2 && monRooms.length > 1 && Math.random() < .45){
+  if(depth >= 2 && monRooms.length > 1 && Math.random() < .18){
     let m; for(let i=0;i<25;i++){ m = genMonster(depth, false, Object.assign({}, monOpts, {lvl:(monOpts.lvl||0)+1})); if(m.rarity==='rare') break; }
     m.elite = true; m.hp = monStats(m).hp; fl.rooms[monRooms[0]].m = m;
   }
