@@ -515,6 +515,9 @@ svg[shape-rendering]{display:block}
 .maplinks{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
 .maplinks line{stroke:#3a3848;stroke-width:4;stroke-linecap:round}
 .maplinks line.walked{stroke:#b8ae94}
+.room.unknown{border-style:dashed}
+.room.unknown img{opacity:.55}
+.room .unexp{position:absolute;top:2px;right:2px;width:16px;height:16px;line-height:16px;text-align:center;font-family:'Pixelify Sans','VT323',monospace;font-weight:700;font-size:13px;background:#e8dcb8;color:#14131b}
 .ln{position:absolute;background:#3a3848}
 .ln.h{height:4px}
 .ln.v{width:4px}
@@ -2954,7 +2957,8 @@ function mapHtml(){
     const cls = ['room', here?'here':'', fl.visited[k]?'seen':'unknown', adj && reach ?'adj':'', known && rm.t==='mon' && !rm.done ? 'danger '+(rm.m.rarity||'') : '', known && rm.done && rm.t!=='start' && rm.t!=='stairs' ? 'done' : '', known ? 't-'+rm.t : ''].join(' ');
     const label = known ? (rm.t==='mon' ? (rm.done ? 'Cleared' : `Lv ${rm.m.lvl}`) : rm.t==='empty' ? '' : ROOM[rm.t].name.split(' ')[0]) : '';
     tiles += `<button class="${cls}" style="left:${x}px;top:${y}px" data-act="goRoom" data-arg="${k}" ${reach?'':'aria-disabled="true"'} aria-label="${known ? ROOM[rm.t].name : 'Unexplored room'}">
-      ${art ? `<img src="${art}" alt="">` : `<span class="q">${known ? (rm.t==='empty' ? '' : '·') : '?'}</span>`}
+      ${art ? `<img src="${art}" alt="">` : `<span class="q">${known && fl.visited[k] ? (rm.t==='empty' ? '' : '·') : '?'}</span>`}
+      ${known && !fl.visited[k] && art ? '<span class="unexp" title="Not explored yet">?</span>' : ''}
       ${label ? `<span class="rl">${label}</span>` : ''}${here ? '<span class="you">YOU</span>' : ''}</button>`;
   }
   return `<div class="mapinner" style="width:${W}px;height:${H}px">${lines}${tiles}</div>`;
