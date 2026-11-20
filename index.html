@@ -2186,10 +2186,10 @@ function tavernView(){
       <button class="btn" data-act="restFree" ${!hurt?'disabled':''}>Sleep in the stable for free (heals half)</button>
     </div>
     <h3 class="section-h">The Old Wall <small class="sub">${stonesPlaced()} of ${STONES.length} stones</small></h3>
-    <p class="sub" style="margin-bottom:6px">${S.abyss ? '“You did it. Never thought I’d see it open. Whatever’s down there now, it’s yours.”' : '“That wall was here before the town. Eight stones went missing from it, all somewhere below the twentieth floor. Find them, bring them home, and see what it opens.”'}</p>
+    <p class="sub" style="margin-bottom:6px">${S.abyss ? '“You did it. Never thought I’d see it open. Whatever’s down there now, it’s yours.”' : '“That wall was here before the town. Eight stones went missing from it, all somewhere below the twentieth floor. Bring every one home and set it. But the wall only trusts the living: die before all eight are set, and every stone falls out and rolls back into the deep.”'}</p>
     ${wallHtml()}
     <div class="rows" style="margin-top:8px">${STONES.map(s => { const st = (S.stones||{})[s.id];
-      return `<div class="row stonerow ${st||'none'}"><img src="${WALL.stones[s.id].src}" alt="" class="${st ? '' : 'sil'}"><span class="nm" style="flex:1">${st ? s.name : '???'}<br><span class="sub">${st==='placed' ? 'Set in the wall' : st==='held' ? 'Safe in town. Ready to set.' : 'Lost somewhere below floor 20'}</span></span>${st==='held' ? `<button class="btn sm equipnow" data-act="setStone" data-arg="${s.id}">Set it</button>` : ''}</div>`; }).join('')}</div>
+      return `<div class="row stonerow ${st||'none'}"><img src="${WALL.stones[s.id].src}" alt="" class="${st ? '' : 'sil'}"><span class="nm" style="flex:1">${st ? s.name : '???'}<br><span class="sub">${st==='placed' ? (S.abyss ? 'Set in the wall' : 'Set in the wall, until you die') : st==='held' ? 'Home safe. Ready to set.' : 'Lost somewhere below floor 20'}</span></span>${st==='held' ? `<button class="btn sm equipnow" data-act="setStone" data-arg="${s.id}">Set it</button>` : ''}</div>`; }).join('')}</div>
     <h3 class="section-h">Your stash (${S.stash.length})</h3><div class="rows">${stash}</div>
     <h3 class="section-h">Your bag (${h.bag.length} of ${bagMax()})</h3><div class="rows">${bag}</div></div>`;
 }
@@ -2262,7 +2262,7 @@ function dungeonView(){
     return `<div class="dun"><div class="panel">
       <h2>You died</h2><p class="lead">Slain on floor ${r.depth} by ${article(r.killer).toLowerCase()} ${r.killer}.</p>
       <div class="rewards"><div class="reward"><b>${r.kills}</b><span>Monsters slain</span></div><div class="reward"><b>${S.hero.deepest}</b><span>Deepest floor</span></div></div>
-      <p class="empty-note">You lost ${r.lostItems} item${r.lostItems===1?'':'s'} from your bag and ${r.lostGold} gold. Your equipped gear and stash are safe. Quest progress and materials from this run are lost.${r.track && r.track.stones && r.track.stones.length ? ` <b class="down">The ${r.track.stones.map(stoneName).join(' and the ')} slipped back into the dark.</b>` : ''}</p>
+      <p class="empty-note">You lost ${r.lostItems} item${r.lostItems===1?'':'s'} from your bag and ${r.lostGold} gold. Your equipped gear and stash are safe. Quest progress and materials from this run are lost.${r.track && r.track.stones && r.track.stones.length ? ` <b class="down">The ${r.track.stones.map(stoneName).join(' and the ')} slipped back into the dark.</b>` : ''}${r.lostWall ? ` <b class="down">Back in town, the Old Wall shudders. ${r.lostWall === 1 ? 'Its stone falls' : `All ${r.lostWall} of its stones fall`} out and roll back into the deep.</b>` : ''}</p>
       <div class="stack"><button class="btn primary" data-act="deadToTown">Wake up in Emberhold</button></div>
     </div></div>`;
   }
@@ -3300,7 +3300,9 @@ function onDeath(){
   r.killer = monName(r.mon);
   r.lostItems = S.hero.bag.length; r.lostGold = Math.floor(S.hero.gold*(.5 - .05*perk('vault')));
   { const st = stats(); st.deaths++; st.mostLost = Math.max(st.mostLost, r.lostGold); }
-  r.lostItems += beltCount(); S.hero.bag = []; S.hero.belt = []; S.hero.gold -= r.lostGold;
+  r.lostItems += beltCount(); S.hero.bag = []; S.hero.belt = [];
+  // until the Abyss is open, any death empties the Old Wall
+  if(!S.abyss && S.stones && Object.keys(S.stones).length){ r.lostWall = Object.keys(S.stones).length; S.stones = {}; } S.hero.gold -= r.lostGold;
   save();
   busy = true;
   setTimeout(()=>{ busy = false; closeSheet(); render(); }, window.__fast ? 0 : 700);
