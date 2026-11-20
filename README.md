@@ -39,6 +39,7 @@ art-tools/          Python scripts that generate the 48x48 monster sprites
   folk1.py-folk3.py Hand-built humanoids, one function per character
   humans.py         Older template humanoid generator (also newfolk.py)
   dragons.py        Parametric dragon generator
+  cut_portraits.py  Cuts the townsfolk portraits out of source-art/portraits-set-1.jpg at their native pixel grid
   cut_buildings.py  Cuts town buildings out of an art sheet at their native pixel grid (python3 cut_buildings.py source-art/buildings-set-2.jpg sheet2 out.json)
   iso_scene2.py     Paints the town ground: grass, cobbled streets, plaza, trees, lamp posts
   iso.py            Isometric engine: textured walls, tiled and thatched roofs, props
