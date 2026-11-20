@@ -697,6 +697,16 @@ svg[shape-rendering]{display:block}
 .floorpop.doomed .fpcard{border-color:#d8383a}.floorpop.doomed .fpnum{color:#ff4a3a}
 .floorpop.abyssal .fpcard{border-color:#a070ff}.floorpop.abyssal .fpnum{color:#c070ff}
 @keyframes fpin{from{opacity:0}to{opacity:1}}
+
+/* ===== Waystones ===== */
+.gatesec{margin-top:12px;padding:10px;border:2px solid var(--line);background:var(--panel)}
+.gatesec.abyss{border-color:#a070ff}
+.gatesec h4{font-size:20px;margin-bottom:2px}
+.waygrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.btn.way{flex-direction:column;gap:2px;min-height:56px;line-height:1.05}
+.btn.way .price{display:inline-flex;align-items:center;gap:4px;font-size:17px}
+.btn.way .sub{font-size:15px;color:inherit;opacity:.8}
+
 /* ===== New rooms and the Bestiary ===== */
 .bestbtn{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px 10px;background:var(--panel);border:2px solid var(--frame);color:var(--ink);font:inherit;cursor:pointer}
 .bestbtn .bimgs{display:flex;flex:none}
@@ -1867,6 +1877,7 @@ function bankRun(){
   const r = R(); if(!r) return [];
   const t = runTrack(), notes = [];
   t.deepest = Math.max(t.deepest, r.depth);
+  { const ws = waystones(r.abyss); for(let d = 10; d <= t.deepest; d += 10) if(!ws.includes(d)){ ws.push(d); ws.sort((a,b) => a-b); notes.unshift(`${r.abyss ? 'Abyss ' : ''}Waystone of floor ${d} attuned. Start future runs there from the Dungeon Gate`); } }
   S.mats = S.mats || {};
   for(const [m,c] of Object.entries(t.mats)){ S.mats[m] = (S.mats[m]||0) + c; notes.push(`+${c} ${MATS[m].name}`); }
   S.stones = S.stones || {};
@@ -2075,7 +2086,7 @@ function centerTown(){}
 /* Walk the roads: along your street, turn at the corner of the target's block, then up to its door. */
 let townMoving = false;
 async function townGo(k){
-  if(k==='gate') return S.abyss ? openSheet(gateSheet(), 'gate') : enterDungeon(false);
+  if(k==='gate') return (S.abyss || waystones(false).length) ? openSheet(gateSheet(), 'gate') : enterDungeon(false);
   if(k==='square') return toast('You sit by the fountain a while. It’s quiet up here.');
   return ACT.go(k);
 }
@@ -2102,17 +2113,22 @@ async function townWalkUnused(k){
     el.classList.remove('walking'); townMoving = false;
   }
   S.townPos = to;
-  if(k==='gate') return S.abyss ? openSheet(gateSheet(), 'gate') : enterDungeon(false);
+  if(k==='gate') return (S.abyss || waystones(false).length) ? openSheet(gateSheet(), 'gate') : enterDungeon(false);
   if(k==='square') return toast('You sit by the fountain a while. It’s quiet up here.');
   ACT.go(k);
 }
 function gateSheet(){
+  const g = S.hero.gold;
+  const ways = abyss => waystones(abyss).map(d => { const t = wayToll(d, abyss);
+    return `<button class="btn way ${abyss ? 'abyssbtn' : ''}" data-act="${abyss ? 'enterAbyss' : 'enterDepths'}" data-arg="${d}" ${g < t ? 'disabled' : ''}>Floor ${d}<span class="price"><span class="coin"></span>${t.toLocaleString()}</span></button>`; }).join('');
+  const section = abyss => `<div class="gatesec ${abyss ? 'abyss' : ''}">
+      <h4>${abyss ? 'The Abyss' : 'The Depths'}</h4>
+      <p class="sub">${abyss ? 'About ten times harder. Monsters 30 levels stronger, loot 45 item levels better.' : 'The dungeon you know.'}</p>
+      <div class="waygrid"><button class="btn ${abyss ? 'abyssbtn' : 'primary'} way" data-act="${abyss ? 'enterAbyss' : 'enterDepths'}" data-arg="1">Floor 1<span class="sub">Free</span></button>${ways(abyss)}</div>
+    </div>`;
   return `<div class="grab"></div><h3 class="sheet-title">The Dungeon Gate</h3>
-    <p class="sub">Two ways down now.</p>
-    <div class="stack" style="margin-top:10px">
-      <button class="btn primary" data-act="enterDepths">The Depths<br><span class="sub">The dungeon you know.</span></button>
-      <button class="btn abyssbtn" data-act="enterAbyss">The Abyss<br><span class="sub">About ten times harder. Monsters 30 levels stronger, loot 45 item levels better.</span></button>
-    </div>
+    <p class="sub">Waystones open on every 10th floor once you’ve reached it and made it home alive. Using one costs a toll.</p>
+    ${section(false)}${S.abyss ? section(true) : ''}
     <div class="sheet-actions"><button class="btn" data-act="closeSheet">Not yet</button></div>`;
 }
 function noticeSheet(){
@@ -3085,13 +3101,19 @@ function floorIntro(){
   document.querySelectorAll('.floorpop').forEach(x => x.remove());
   document.body.appendChild(el);
 }
-function enterDungeon(abyss){
+/* Waystones: reach a floor that's a multiple of 10 and make it home alive, and you can start runs there for a toll. */
+const wayToll = (d, abyss) => 2*d*d*(abyss ? 3 : 1);
+function waystones(abyss){ S.ways = S.ways || {depths:[], abyss:[]}; return S.ways[abyss ? 'abyss' : 'depths']; }
+function enterDungeon(abyss, start){
   closeSheet();
-  S.run = {depth:1, mon:null, pg:0, mg:0, log:[], pb:{}, mb:{}, phase:'explore', loot:[], kills:0, abyss: !!(abyss && S.abyss)};
+  abyss = !!(abyss && S.abyss); start = start || 1;
+  if(start > 1){ const t = wayToll(start, abyss); if(!waystones(abyss).includes(start) || S.hero.gold < t) return; S.hero.gold -= t; }
+  S.run = {depth:start, mon:null, pg:0, mg:0, log:[], pb:{}, mb:{}, phase:'explore', loot:[], kills:0, abyss};
   rollRunAffixes(S.run);
-  newFloor(1);
-  S.hero.deepest = Math.max(S.hero.deepest, 1);
-  stats().runs++; runTrack();
+  newFloor(start);
+  S.hero.deepest = Math.max(S.hero.deepest, start);
+  stats().runs++; runTrack().deepest = start;
+  if(start > 1) toast(`You pay the toll and step through the Waystone to floor ${start}.`);
   save(); render(); $('#view').scrollTop = 0;
   floorIntro();
 }
@@ -3595,8 +3617,8 @@ const ACT = {
     if(stonesPlaced() === STONES.length && !S.abyss){ S.abyss = true; toast('The last stone clicks into place. The wall groans open. The Abyss awaits beyond the Dungeon Gate.'); }
     else toast(`The ${stoneName(a)} slides into place. ${STONES.length - stonesPlaced()} to go.`);
     save(); render(); },
-  enterDepths: () => { closeSheet(); enterDungeon(false); },
-  enterAbyss: () => { closeSheet(); enterDungeon(true); },
+  enterDepths: a => { closeSheet(); enterDungeon(false, +a || 1); },
+  enterAbyss: a => { closeSheet(); enterDungeon(true, +a || 1); },
   bestiary: () => openSheet(bestiarySheet(), 'bestiary'),
   beast: a => openSheet(beastSheet(a), 'beast'),
   buyPerk: a => { const p = PERKS[a]; if(!p) return; const l = perk(a); if(l >= p.max) return; const c = perkCost(a), need = perkRep(a);
