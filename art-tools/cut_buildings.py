@@ -10,9 +10,14 @@ from scipy import ndimage
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else 'source-art/buildings-set-1.jpg'
 A = np.array(Image.open(SRC).convert('RGB')).astype(float)
-BG = np.array([32, 26, 40.])
-BOX = {'guild': (14, 106, 703, 917), 'smithy': (726, 168, 1365, 917), 'temple': (1377, 62, 2046, 914),
-       'yard': (86, 1094, 1002, 1812), 'tavern': (1045, 1047, 1888, 1812)}
+BG = A[2:12, 2:12].reshape(-1, 3).mean(0)
+BOXES = {
+  'sheet1': {'guild': (14, 106, 703, 917), 'smithy': (726, 168, 1365, 917), 'temple': (1377, 62, 2046, 914),
+             'yard': (86, 1094, 1002, 1812), 'tavern': (1045, 1047, 1888, 1812)},
+  'sheet2': {'guild': (63, 10, 675, 612), 'smithy': (727, 60, 1332, 612), 'temple': (1382, 8, 1996, 612),
+             'yard': (29, 715, 679, 1252), 'tavern': (733, 715, 1340, 1252), 'gate': (1374, 715, 2022, 1252),
+             'apothecary': (65, 1372, 656, 1878), 'cartographer': (726, 1372, 1331, 1878), 'shop': (1403, 1378, 2002, 1878)}}
+BOX = BOXES[sys.argv[2] if len(sys.argv) > 2 else 'sheet1']
 
 def grid(edges):
     """Best (period, phase) for a 1-D edge-strength profile."""
@@ -29,7 +34,8 @@ def mask_for(c):
     edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     fg = ~np.isin(lab, list(edge))
     lab2, n2 = ndimage.label(fg); sizes = ndimage.sum(fg, lab2, range(1, n2 + 1))
-    return ndimage.binary_fill_holes(lab2 == 1 + int(np.argmax(sizes)))
+    keep = [i + 1 for i, sz in enumerate(sizes) if sz >= max(sizes) * .004]   # the building plus detached bits like a flag
+    return ndimage.binary_fill_holes(np.isin(lab2, keep))
 
 out, prev = {}, []
 for k, (x0, y0, x1, y1) in BOX.items():
@@ -58,8 +64,8 @@ for k, (x0, y0, x1, y1) in BOX.items():
     out[k] = {'src': 'data:image/png;base64,' + base64.b64encode(b.getvalue()).decode(), 'w': W, 'h': H,
               'ax': round((xw.min() + xw.max() + 1) / 2, 1), 'ay': widest, 'island': int(island)}
     prev.append(im); print(k, 'grid', round(px, 2), round(py, 2), 'size', W, H, 'island', island)
-json.dump(out, open('user_buildings2.json', 'w'))
+json.dump(out, open(sys.argv[3] if len(sys.argv) > 3 else 'user_buildings2.json', 'w'))
 S = 4; tw = sum(p.width * S + 10 for p in prev); th = max(p.height for p in prev) * S + 10
 sh = Image.new('RGBA', (tw, th), (20, 22, 30, 255)); x = 5
 for p in prev: sh.alpha_composite(p.resize((p.width * S, p.height * S), Image.NEAREST), (x, 5)); x += p.width * S + 10
-sh.save('user_buildings2.png')
+sh.save((sys.argv[3] if len(sys.argv) > 3 else 'user_buildings2.json').replace('.json', '.png'))
