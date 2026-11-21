@@ -28,7 +28,7 @@ def native(box, lo=13.5, hi=17, keep_bg=False):
             res[j, i, :3] = np.median(c[b0:b1, a0:a1][cm], axis=0); res[j, i, 3] = 255
     im = Image.fromarray(res, 'RGBA'); bb = im.getbbox()
     return im.crop(bb), (px, py)
-wall, g = native((17, 15, 1905, 1124)); print('wall', wall.size, g)
+wall, g = native((19, 16, 1906, 1125), 6.5, 10); print('wall', wall.size, g)
 w = np.array(wall)
 # holes: dark pixels inside the wall that don't touch its outside edge
 lum = w[..., :3].astype(float) @ [.3, .59, .11]
@@ -36,7 +36,7 @@ dark = (lum < 62) & (w[..., 3] > 0)
 lab, n = ndimage.label(dark); holes = []
 for i, sl in enumerate(ndimage.find_objects(lab)):
     m = lab[sl] == i + 1; sz = m.sum()
-    if sz < 150: continue
+    if sz < 500: continue
     if sl[0].start == 0 or sl[1].start == 0 or sl[0].stop >= w.shape[0] or sl[1].stop >= w.shape[1]: continue
     ys, xs = np.nonzero(lab == i + 1)
     holes.append({'cx': float(xs.mean() + .5), 'cy': float(ys.mean() + .5), 'x0': int(xs.min()), 'y0': int(ys.min()), 'x1': int(xs.max() + 1), 'y1': int(ys.max() + 1), 'size': int(sz)})
@@ -52,7 +52,7 @@ for k, box in STONES:
     b = io.BytesIO(); st.save(b, 'PNG', optimize=True); out['stones'][k] = {'src': 'data:image/png;base64,' + base64.b64encode(b.getvalue()).decode(), 'w': st.width, 'h': st.height}
 json.dump(out, open('wall.json', 'w'))
 # preview: wall with every stone set in its hole
-S = 6; pv = Image.new('RGBA', (wall.width * S, wall.height * S + 140), (20, 22, 30, 255)); pv.alpha_composite(wall.resize((wall.width * S, wall.height * S), Image.NEAREST))
+S = 3; pv = Image.new('RGBA', (wall.width * S, wall.height * S + 140), (20, 22, 30, 255)); pv.alpha_composite(wall.resize((wall.width * S, wall.height * S), Image.NEAREST))
 for (k, _), h, st in zip(STONES, holes, ims):
     hw, hh = h['x1'] - h['x0'], h['y1'] - h['y0']; s = min(hw / st.width, hh / st.height) * 1.05
     sw, sh = max(1, round(st.width * s * S)), max(1, round(st.height * s * S))
