@@ -2153,7 +2153,7 @@ async function townWalkUnused(k){
 function gateSheet(){
   const g = S.hero.gold;
   const ways = abyss => waystones(abyss).map(d => { const t = wayToll(d, abyss);
-    return `<button class="btn way ${abyss ? 'abyssbtn' : ''}" data-act="${abyss ? 'enterAbyss' : 'enterDepths'}" data-arg="${d}" ${g < t ? 'disabled' : ''}>Floor ${d}<span class="price"><span class="coin"></span>${t.toLocaleString()}</span></button>`; }).join('');
+    return `<button class="btn way ${abyss ? 'abyssbtn' : ''}" data-act="${abyss ? 'enterAbyss' : 'enterDepths'}" data-arg="${d}" ${g < t ? 'disabled' : ''}>Floor ${d+1}<span class="sub">past Waystone ${d}</span><span class="price"><span class="coin"></span>${t.toLocaleString()}</span></button>`; }).join('');
   const section = abyss => `<div class="gatesec ${abyss ? 'abyss' : ''}">
       <h4>${abyss ? 'The Abyss' : 'The Depths'}</h4>
       <p class="sub">${abyss ? 'About ten times harder. Monsters 30 levels stronger, loot 45 item levels better.' : 'The dungeon you know.'}</p>
@@ -3222,16 +3222,18 @@ function floorIntro(){
 /* Waystones: reach a floor that's a multiple of 10 and make it home alive, and you can start runs there for a toll. */
 const wayToll = (d, abyss) => 2*d*d*(abyss ? 3 : 1);
 function waystones(abyss){ S.ways = S.ways || {depths:[], abyss:[]}; return S.ways[abyss ? 'abyss' : 'depths']; }
-function enterDungeon(abyss, start){
+function enterDungeon(abyss, way){
   closeSheet();
-  abyss = !!(abyss && S.abyss); start = start || 1;
-  if(start > 1){ const t = wayToll(start, abyss); if(!waystones(abyss).includes(start) || S.hero.gold < t) return; S.hero.gold -= t; }
+  abyss = !!(abyss && S.abyss); way = way > 1 ? way : 0;
+  // a Waystone sets you down on the floor just past it, since you've already beaten that one
+  const start = way ? way + 1 : 1;
+  if(way){ const t = wayToll(way, abyss); if(!waystones(abyss).includes(way) || S.hero.gold < t) return; S.hero.gold -= t; }
   S.run = {depth:start, mon:null, pg:0, mg:0, log:[], pb:{}, mb:{}, phase:'explore', loot:[], kills:0, abyss};
   rollRunAffixes(S.run);
   newFloor(start);
   S.hero.deepest = Math.max(S.hero.deepest, start);
   stats().runs++; runTrack().deepest = start;
-  if(start > 1) toast(`You pay the toll and step through the Waystone to floor ${start}.`);
+  if(way) toast(`You pay the toll and step through the Waystone of floor ${way}, down to floor ${start}.`);
   save(); render(); $('#view').scrollTop = 0;
   floorIntro();
 }
