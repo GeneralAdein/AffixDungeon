@@ -2946,9 +2946,11 @@ function genFloor(depth){
     if(holder) fl.rooms[holder].m.key = true; else for(const k of keys) if(fl.rooms[k].t==='vault') fl.rooms[k].t = 'empty';
   }
   for(const k of keys) if(fl.rooms[k].t === 'empty') fl.rooms[k].flavor = pick(EMPTY_FLAVOR);
-  // a secret: one ordinary room hides a passage to a room that isn't on the map yet
+  // wall defects: about 3 in 10 rooms have something odd about a wall; at most one of them hides a real passage
+  const defects = keys.filter(k => !['stairs','vault','merchant'].includes(fl.rooms[k].t) && Math.random() < DEFECT_CHANCE);
+  for(const k of defects) fl.rooms[k].defect = pick(DEFECTS);
   if(depth >= 2 && Math.random() < SECRET_CHANCE){
-    for(const k of shuffle(keys.filter(k => fl.rooms[k].t==='empty'))){
+    for(const k of shuffle(defects)){
       const rm = fl.rooms[k], d = shuffle(DIRS).find(([dx,dy]) => !fl.rooms[key(rm.x+dx, rm.y+dy)]);
       if(d){ rm.secret = {dx:d[0], dy:d[1], kind: pick(['hoard','library','armory','champion','deathtrap','portal'])}; break; }
     }
@@ -3076,9 +3078,9 @@ function roomPanel(){
       else { text = text || `Your quest needs ${MATS[rm.mat].name}. Searching here could turn up several, if nothing wakes up.`; acts = `<button class="btn primary span2" data-act="harvest">Search it</button>`; }
       break;
   }
-  if(rm.secret && !rm.secretFound && !pending(rm)){
-    text += ' <span class="secret">A cold draft seeps from a crack in one wall.</span>';
-    if(!acts) acts = `<button class="btn primary span2" data-act="searchSecret">Search the crack</button>`;
+  if((rm.defect || rm.secret) && !rm.searched && !pending(rm)){
+    text += ` <span class="secret">${rm.defect || 'A cold draft seeps from a crack in one wall.'}</span>`;
+    if(!acts) acts = `<button class="btn span2" data-act="searchSecret">Search the wall</button>`;
   }
   if(!acts) acts = `<div class="idle">Tap a connected room to move</div>`;
   const rar = rm.t==='mon' && !rm.done ? 'r-'+rm.m.rarity : '';
@@ -3138,10 +3140,18 @@ function retreat(){
   const back = fl.prev; fl.prev = fl.cur; fl.cur = back; r.msg = 'You back away the way you came.';
   save(); updateExplore(true);
 }
-const SECRET_CHANCE = .3;
+const SECRET_CHANCE = .3, DEFECT_CHANCE = .3;
+const DEFECTS = ['A cold draft seeps from a crack in one wall.', 'One stone in the wall sits slightly crooked.', 'A hairline crack runs up one wall.', 'A patch of mortar here looks newer than the rest.', 'Something scratches faintly behind one wall.', 'The wall here sounds hollow when your boot scuffs it.', 'Faint scratches circle one of the wall stones.'];
+const NOTHING = ['Just loose stones. Nothing behind them.', 'You pry at it for a while. Solid rock.', 'A rat bolts out of the crack. That’s all.', 'Old mortar crumbles away. Nothing there.', 'Only a draft from somewhere far off.'];
 function searchSecret(){
-  const r = R(), fl = r.floor, rm = fl.rooms[fl.cur]; if(!rm.secret || rm.secretFound) return;
-  const {dx, dy, kind} = rm.secret, nk = key(rm.x+dx, rm.y+dy); rm.secretFound = true;
+  const r = R(), fl = r.floor, rm = fl.rooms[fl.cur]; if(!(rm.defect || rm.secret) || rm.searched) return;
+  rm.searched = true;
+  if(!rm.secret){
+    if(Math.random() < .15){ const g = Math.round(rand(3,8)*r.depth); S.hero.gold += g; r.msg = `Behind a loose stone, someone hid ${g} gold.`; updateHud(); }
+    else r.msg = pick(NOTHING);
+    save(); return updateExplore();
+  }
+  const {dx, dy, kind} = rm.secret, nk = key(rm.x+dx, rm.y+dy);
   if(fl.rooms[nk]){ r.msg = 'Just loose stones. Nothing behind them.'; save(); return updateExplore(); }
   const L = r.depth, room = {x:rm.x+dx, y:rm.y+dy, t:'empty', hidden:true};
   if(kind==='hoard') room.t = 'hoard';
