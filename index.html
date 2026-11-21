@@ -732,6 +732,10 @@ svg[shape-rendering]{display:block}
 #quick .qs.qpack{font-size:19px;gap:6px;flex-direction:row;justify-content:center}
 #quick .qs.qpack svg{width:18px;height:18px}
 
+
+/* ===== Secret passages ===== */
+.rtext .secret{color:#7ad8e8}
+
 /* ===== New rooms and the Bestiary ===== */
 .bestbtn{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px 10px;background:var(--panel);border:2px solid var(--frame);color:var(--ink);font:inherit;cursor:pointer}
 .bestbtn .bimgs{display:flex;flex:none}
@@ -2830,8 +2834,12 @@ const ROOM = {
   idol:{name:'Idol', art:'idol'},
   armory:{name:'Armory', art:'armory'},
   harvest:{name:'Harvest', art:'harvest'},
-  crevice:{name:'Crevice'}
+  crevice:{name:'Crevice'},
+  hoard:{name:'Hoard', art:'hoard'},
+  library:{name:'Library', art:'library'},
+  portal:{name:'Portal', art:'portal'}
 };
+const OART4 = {"hoard": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACxklEQVR42u2YP2vbQBjGHxlhRJdmCB5MpmBKQkLwYEq/Q0snk8HgpV48dPDYwcSJ8VAKBQ2hZGhKIeDBeOwH6FRK8WBM1ZgiMhlTQihqCSGUEHUwd5xPdzqdI0ML94BA1j//nvfe972TACMjIyMjIyMjo6UpvPo4MlEwETYyI2tkctJIImsZD3XsbCg6fn3zx/qnDRDwwdEOAGCr/BwA4PUPAQCl+ih1I1aa8ASc6PPQR63jUgNEpfooNRPWsuDjdDq+QNWdpmIic1dwx86G67lbLXgAWM/d0vvvwmCnEfXdvWEiaFbet7e0Pkr1USgbDcfOhnEjlUkzZU7HF8JNpONmg+4PjnbmOhcZGcfOhv3tEuJGyUoLfndvSKPa7+xHI+4HdL/35RK9djFy/9n5LJ797dLcufLXgbRe7LSKtdcu4rjZQK3jxoKTa3n4V7mHQC763PHPYDk1INKjYgFe/xCt7kRqUlUfj9+/ofuvn1bSKWKSg0m7DQ9KIMnEJkqxOHXyBTSnvrCYLd1u02sXpYWp0q/rALWOKzTQ6k5maSRJm+bUF9ZBRifne+2ismXG6b6zEoH3/GCuTgj8+PI33RaaieMKdtFUUHWmZ/YDCg8An5wfAICz84xeF1ItDUTdZhFovjsBwLub74Az2z+orNHjVXeavAZEBkjeb26s0t+k27B/pAvOzh2t7kT6LNnaSWrgpJGfAybQmxurETNsXbAAqmgfVNZoYZMVK9sgPD/AVmEFnh/g5YerxQzoSjYHiAzyoHGjpmVAx0S5ua8s6DhAcpzAsteRYzJ45TyQxISst6ug+fTijagirzWRnTTycxHiIURRY4FE51lwmSkVfOLVKFlKvHhyTxgpHjAOXnY/n+9J3521ltPsupw1owJKIgKt+9K/8Dsp/5JBaoVNB34k2PSqutNUPrmk+lVC5/plfCP6L/UXEEfnUbAhwa0AAAAASUVORK5CYII=", "library": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACkElEQVR42u2Yz2vTYBjHvykhZKHbQNpRirrCmAcREdaDh/0BCkV6EAQRd9XTzuJZvNpT79KL4KGHgLDTDjuM0YNn24FbpQsuqGQlC2VQD9L0bZr3R5pkS2eeU/Lmyft+v+/75vkkAdJII425DomXoMrK8KpFOhcDaSYDqqwM3z69AwCo6W23fbuyTr2HzIsq993nb1QTQgZqehtVJe+2NwenvgPX9DYK6mO3/djah6L8puZqhdcT12yjPmXiyDhDY++EakAOupw7lgmtNB7Y7OlTMzkS/+S+A2DBbdvt2L65tDgyzrg5cpi9afZ0rNz7A2ARAPCzY1Fzdzs2HmVWAGU8EWHFA0AmiZVFVHwiDQQRn9gVSA3MU8hJE9RsGRPn1XIhnAGRuk2Wz2NrH7eXHjI5QpbhXLHCpDFvfC6Js6qE7co6syMefckg6Wv2dGiZLnO2my0DfWc4O4lH4lkD8+jrXEi+EHyuOgDy1O0zMtXYO4nuGYiTviJ7Pi2jqYHUQEria0JiVvlk0VeEO5dCYpK+hvOFOQgJQduoB2JAZCSmxT/68sk7pm9+YmVsdXg5JM7eXeRuHy95WdtnxzKB0itonnbbqAeicexV6GP//HCuy+jL7MLateLAi173MNEGeAIbxVtriTYQtcC5I7G3nPIqkhDI/Mqo3L/hni9pv8ZL2p9eVFO56R7nBj982wEgV6xM/eCt6e1wIPODmQYJrYMPkc98eXML1XIh0N+50CT2xtfSszes6w++f3of9GUuNIlFXrB4wr15NCNX8k0sKj7sPekXGeD/+5u3r2d5FmLhAKs6jASFfYhjMyBa2qIWGIkBUnz39DxWQUH7l0XFkx1vrC6jvLkVufiN1WX8d/EXd51a5hPNffMAAAAASUVORK5CYII=", "portal": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABt0lEQVR42u2WsUvDQBTGv4NQuuc/6ODgIMWhIEiVTpkyFnF0s4NIB/8Dlw4iDro5Fung0Ck4FCuC0KGEDh1ESqcSpAFHEaEOciEX79JcmlCH901t7hJ+33v37j2ARCKRSCQSiZSbPqaLN4oCRZtEovqhiJFIJBLdYiSSRCyLjxSNwiLNe5/fX2wtBqLA9cMj6b5G7QYAcN07lq532rcrG2JpoKPA3W5H+o5z6QMArFNTum7bdaWhpGZYUnAOzaMahnIdP1X6y5b5xyzPFjezzAhbBq+KNod+vFvtDO8fiGbCWfG8GZ56TqwJpgufFXicEduuw/NmwVqcCaYLnzU4AAwG/eD32cUeypaJSmVX2KMyYcR9OHzes4IPw8rUavbhOj7KlhnUReNqR7lfaSCcwrQwa2tkRaOwqNasCOwzXMdHq5kvND9CpdKG8Hw8GkqPUGwRq0zwVGcNzos4KXyia7RaszCfvwfPJpNX4RrVNeJOH4T/7ftz4RrVgddqZJtb27+N5uQl10bGC3Y8Gq7eyFSjBDcTzYruKCGLtu4oYaSZHMejoTDMRQ0tA5UB5z7M/ddxmrRu/QCexeygpswHzgAAAABJRU5ErkJggg=="};
 const OART3 = {"vault": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACeUlEQVR42u2ZP0gbURzHv3cch0gUh1BKKaVIh4AOUkKGcAgpDiVDxgyCixRRtOgsHYu4i0MXhwodHEpxOBRKA+UIJYQgYmIGERGRcBwlg0MpB+lgSN6ld0nu3Xv3B/Kbjnvv7j7f9/u99755AUYxCk8h0D44Jskt1jB/zL+CLwLGJLmVX1xmPppHXw5cixDDAg8A82/eus6sGBb4RuOeSoQYBngvmRBYwB8fH1HD5nJ5SwbI+PnjZOCcEFjAJ9ML1ALKxe/I5fK2AoYRIQQJDwCG3sDN1QVSKcWxTz8Rohd4SR7HWbno2OesXBzYfnd7jZevZlEqaVRzQgxq5HuDVoTrfYAHfPzJ06FEeN4HeMAPK8IwdG8CeMK7LScypDA4SkNvUD/rScBcMs2l3Y0gkRb+484O0yzQvo86Ax+2tztrvNNI2rWTo3t3ew0AeP5iGqvv6HyWGJVaD1wAD3jfBPCC5ypAK6id63q1Eh0BWkGFVlBR3kt0LfNeAvVqhYsQiTU8CW7x/e37yfcVJGZeR28SA8Bl3QhvCdmNvmzqkE3dAn+4HmdaSmJUR565F1IyWWx97e1xDgD4VEtZ7ioZq4UOxAuFJTxloNfraAUVh+txAMDmQfeUofbrG1bmxwEAu6dmZxUivVAkVqHQZaA3lEwWS/tqe7V5hrXPJgBgI/2A3dPHa5Z7AJdfZEomCwBY2lcRm5j6r2wi44VIYF7w3ATwdJ/cBfgJz1yA3/BMBQQBz9RK2NkCJ6swqH10rOL2WMXJCgyyCr4dq9j9exJUzbsWEAZ4p5PpviVEgpMvIOFjk49Wodn8bfsOr+39wIeeA3bwTh8cBUX8A/jjN18L8ZOBAAAAAElFTkSuQmCC", "idol": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAClUlEQVR42u1YMWvbQBT+ZA5hSoYMxnQqnjJkciGD0dYlQwimk4cOwRT/gA4dQqdMwUMo/QGiGA8ZPIVQQimkgQ4mBEOcDkUYDaKDMEaDpmCMQV0qc3bk+KR7kiySBxp0kp6+79333rs74KlanqneOvoS/mGn9dmj+LGsr1zWlfBMINME2npTKgHzTPXaehOGYaZThWQTmcKHtISCZiHPVC/oiiP6jGI22noTB43DGUCtrgW+1211Pf6bVHNgPJ0oB43DuTGtri0FH/TcMEwcn+gYTydKahIyDBOGYeLTxwZ6F/2V7/cu+qBMXCkC4+lEOT7Rhd93bHdGGoBQ9M8+eNePPVcoqpFafAEA2NkrrwQPAFbfAgBMRvdS8iEj8JjuF8HzNvjxR5oAeSe+7Fm47FkPwN/ZLu6WEFm/pUTrKDjy/8cBwB3SkCGXkCMQZR/86Lcdv4RWVQEftH+JgqcyhcJJnqne1u52KOAU0Y8tB8ybAcybwdy983cUS7opVI4WZ8EdujPQhVfFB9H3G+HaSEira7OlRKlcCtS6P7azV4ZjuyR9gFFOp9+Jl62J/OcOYT9gcehSdEmRuT0xD56qnObSAC9iIv0nMQJRZPP2i1J5PlYJY5XuFSrdq9iTNjIBUU2K2ubLzWTL6CpNXmtvsikhkR0Zb/vWLfatWwDA1u629NF65pOYxek8KIG/lV6TNrNcnOB5uax9GU2ydMYqIR48L5dMzECYyFMt5iLPAF/+ZFeZvq8omxsWFXzt3XsAwPl5Rw78xgaq1RoAoHP61QtLQjoHqtXaHIko3wPAcGgnsyfmo09lPPhfP7+HkhJDihY16mQEKAAkeqzCy4cH7zjyh1aFQjGSjJhM1CmAL/riiTwJ+wegwmrz72BMRQAAAABJRU5ErkJggg==", "armory": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACmElEQVR42u1YMWvbQBR+EiJo8NLQIdm8OH+gXgIZSucbPGjo0DFjwU5GZyvUeEpj8FQ0esjgQYO2DnWL6SSCh1JovCR0sKBLaQwRQqAO5VRFuTufdLpKhnugwb7Hvfe99927ew9AiRIlSlhiGjvxVjtvO19imSB0mc6PpzMAABhPZ9Iyoct2HossELqIk3kcWlwt6kMhHGFSVEnRx3Lcvyg9C7ps6mSjXzYIvUyaBFGovbaeM6ljD3oQRKHGS9FN9nXWBmfWAZxZB9SIkXiNQSyuFg/Wr7995XIeOz2ezqBhakz7XBS69e9ypzWIQs0e9B44/9mxic6nI50+W7z2DZkX2eX5Cbw8fcd0vmFqMJx8LFy1mABG7pLrSUBb66IWjM5Pcj8p0s47np8fAOY/D7CGqUEXtag6nfYeOJ7P1GFJF7Xg1r+DyXwVk7JolMF9Hl3e/bLUKXQGgijUJvNV3DD/Al4H9Oyvgxgm8xXTCEsH26Bx3vF8WAcxtXrpm9LXae8loPBHApz98uiwDiy2X3oVQi8OS3nf4IOOs3zcv6jHczqPpLNsD3qQvkO2AgCJavagR6xctQdQm45MAVAAFAAFQAFQAP6HSO3IRHV4Gh7pHZmoDm5qtqIjKzIBEerILt8PhTsylk7aPq0jMzgbagAAuHHbyZrbfwJDCwChf/81kZcYyvKZNlah6ZjGTpy1L9SRBVGoNZGXGHzTaSZOs5ystAqRQKQjd+OvK3Nc+B7AzldxcAtloIp7ILvGXUbxzBJHh1SjR+4S3KfPYN/a3Xhf8NwpWZ2Ru3xk/+30+hGIwmOVLmrBB/i9UYdnH5G7xmDOa1LzTVGuFhm14MEua7il0Sj06mg/+f3j530tHm6fvv+qtOJJkT+4T9Izd+JoegAAAABJRU5ErkJggg==", "harvest": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACuElEQVR42u1YMWvbQBh9MsJ4MB5C8RBKEcFkNEEEkyEYIzp4KKJ4KCWDMZ069xf4F3TuVIyHUjqYYDJ4MMaYDCEU0VmEYDJkCMWYEIwxBnVwTtUpsnWSPpmW6IGHk6zv3ve9992dBCRIkCBBggQEaFmnF0kVEoUSJHh+3pWoAmXktOUcz5cL6b9JICOnrW/qK+7aiXFDkkTLOr1oSG+PYkvASV7rnmGgv4E5mQEAmuPfsSuRogpkTmb4cqzBnMzw8XywMWHn75+xkNd1d/XjsBqJAozA+OoS46tLX/Ja98xWram8QBQlUkGqTCG9qNVILSQifUZOW6z6SqHkaQtRq5EqQCm9iNVisxC19FQWlUWqdmLccAGbL4uku+0ai1oi8VNU0s+XC0kplDj/i1QzqkVTlDaYLxfSfLmQGPFhv41hvy2USFiLSkFk9ltl2P+G/bZnjMrrOpiSzjhRVqcUReOJkAcAds9ttSirkxyF/K+fXQDAwaH+pIKjEf8aUS4fcZVlyUddCEIlwIi7xweHuidhbzuOHtUoRzrQSWGrvg7T6XTjfUVRvK8XyhDpMTILdbs9bqzrVbtR1/XBOvIr/4+2ZyEnYTd2cjJqtQ8AgE7nKwDYY8NYLY/t9nfumXr9/XZ7wA+N6h5HvFHdQ6t37UtYKZQC7/CBjtMAoGm1tf/RtJpNnhF3jv2wk5M3nlojHac/vdv/+6L9WM3BoANnUn5kW71r20ZuqKrGPf/5hymkhBSUvJuQCHGvZ1giqqo9iTG+fVj10PmtbxIyhdeDoFLMQ9nN2sQrxTxHOtYmDjuJVxxG3PP+3QNtAlTEfee5Cz6PcBPXjne3Stow72ma2L2MOhNxTq7ksyQVNsz7QHtB4JMgS0Tdz/GbUD4bygJhiUf+MufebNwJiRKO+mklts/rou/Zzx5/ANwSr5Lsk9fqAAAAAElFTkSuQmCC"};
 const HARVEST_NAME = {silk:'Spider Nest', venom:'Snake Pit', spore:'Mushroom Grove', tail:'Rat Warren', stinger:'Wasp Hive', chitin:'Molting Ground', bone:'Bone Pile', scale:'Shed Dragon Scales', core:'Golem Wreck', pelt:'Beast Den', ear:'Goblin Camp', tusk:'Orc Camp', sigil:'Ritual Circle', insignia:'Fallen Soldiers'};
 /* Bargains from a cursed idol: a boon and a price, both lasting the rest of the run. */
@@ -2938,6 +2946,13 @@ function genFloor(depth){
     if(holder) fl.rooms[holder].m.key = true; else for(const k of keys) if(fl.rooms[k].t==='vault') fl.rooms[k].t = 'empty';
   }
   for(const k of keys) if(fl.rooms[k].t === 'empty') fl.rooms[k].flavor = pick(EMPTY_FLAVOR);
+  // a secret: one ordinary room hides a passage to a room that isn't on the map yet
+  if(depth >= 2 && Math.random() < SECRET_CHANCE){
+    for(const k of shuffle(keys.filter(k => fl.rooms[k].t==='empty'))){
+      const rm = fl.rooms[k], d = shuffle(DIRS).find(([dx,dy]) => !fl.rooms[key(rm.x+dx, rm.y+dy)]);
+      if(d){ rm.secret = {dx:d[0], dy:d[1], kind: pick(['hoard','library','armory','champion','deathtrap','portal'])}; break; }
+    }
+  }
   fl.cur = start; fl.visited[start] = 1;
   return fl;
 }
@@ -2950,7 +2965,7 @@ function pending(rm){ return (rm.t==='mon' && !rm.done) || (rm.t==='trap' && !rm
 function roomArt(rm){
   if(rm.t==='mon') return rm.done ? null : ART[rm.m.base];
   if(rm.t==='crevice') return rm.done ? null : WALL.stones[rm.stone].src;
-  const a = ROOM[rm.t].art; return a ? (OART3[a] || (a==='entrance' || a==='trap' ? OART2[a] : OART[a])) : null;
+  const a = ROOM[rm.t].art; return a ? (OART4[a] || OART3[a] || (a==='entrance' || a==='trap' ? OART2[a] : OART[a])) : null;
 }
 
 /* ---------- the map ---------- */
@@ -3012,7 +3027,7 @@ function roomPanel(){
       break;
     case 'trap':
       if(rm.done){ title = 'Sprung Trap'; text = text || 'The trap has been dealt with.'; }
-      else { text = text || `Pressure plates cover the floor. Disarm chance ${Math.round(disarmChance()*100)}%, better with Dexterity and Luck.`; acts = `<button class="btn primary" data-act="disarm">Disarm</button><button class="btn" data-act="dash">Dash through</button>`; }
+      else { if(rm.deadly) title = 'Deadly Trap'; text = text || (rm.deadly ? `Blades, spikes and poison darts line every wall. Disarm chance ${Math.round(trapChance(rm)*100)}%. It pays well if you manage it.` : `Pressure plates cover the floor. Disarm chance ${Math.round(disarmChance()*100)}%, better with Dexterity and Luck.`); acts = `<button class="btn primary" data-act="disarm">Disarm</button><button class="btn" data-act="dash">Dash through</button>`; }
       break;
     case 'stairs': text = text || 'Stairs lead down into the dark.'; acts = `<button class="btn primary" data-act="descend">Go down</button><button class="btn" data-act="toTown">Back to town</button>`; break;
     case 'shrine': text = text || (rm.used ? 'The shrine has gone dark.' : 'A glowing shrine hums softly.'); if(!rm.used) acts = `<button class="btn primary span2" data-act="pray">Pray at the shrine</button>`; break;
@@ -3035,6 +3050,21 @@ function roomPanel(){
       if(rm.done){ text = text || 'An empty weapon rack.'; }
       else { text = text || 'Three pieces of gear hang on the rack. You can carry off one.'; acts = `<button class="btn primary span2" data-act="armoryOpen">Choose one</button>`; }
       break;
+    case 'hoard':
+      title = 'Hidden Hoard';
+      if(rm.done) text = text || 'Not a coin left.';
+      else { text = text || 'Gold is heaped on the floor, forgotten by whoever walled it in.'; acts = `<button class="btn primary span2" data-act="gatherHoard">Gather the gold</button>`; }
+      break;
+    case 'library':
+      title = 'Hidden Library';
+      if(rm.done) text = text || 'Dusty shelves. Nothing left worth reading.';
+      else { text = text || 'Shelves of crumbling books. One scroll still glows.'; acts = `<button class="btn primary span2" data-act="takeTome">Take the scroll</button>`; }
+      break;
+    case 'portal':
+      title = 'Teleport Circle';
+      if(rm.done) text = text || 'The runes have gone dark.';
+      else { text = text || 'A circle of violet runes hums on the floor. Step in and it will take you somewhere on this floor you haven’t been.'; acts = `<button class="btn primary span2" data-act="usePortal">Step into the circle</button>`; }
+      break;
     case 'crevice':
       title = 'Glimmering Crevice';
       if(rm.done){ text = text || 'An empty crack in the stone. Something old was here.'; }
@@ -3045,6 +3075,10 @@ function roomPanel(){
       if(rm.done){ text = text || 'Picked clean.'; }
       else { text = text || `Your quest needs ${MATS[rm.mat].name}. Searching here could turn up several, if nothing wakes up.`; acts = `<button class="btn primary span2" data-act="harvest">Search it</button>`; }
       break;
+  }
+  if(rm.secret && !rm.secretFound && !pending(rm)){
+    text += ' <span class="secret">A cold draft seeps from a crack in one wall.</span>';
+    if(!acts) acts = `<button class="btn primary span2" data-act="searchSecret">Search the crack</button>`;
   }
   if(!acts) acts = `<div class="idle">Tap a connected room to move</div>`;
   const rar = rm.t==='mon' && !rm.done ? 'r-'+rm.m.rarity : '';
@@ -3104,25 +3138,42 @@ function retreat(){
   const back = fl.prev; fl.prev = fl.cur; fl.cur = back; r.msg = 'You back away the way you came.';
   save(); updateExplore(true);
 }
+const SECRET_CHANCE = .3;
+function searchSecret(){
+  const r = R(), fl = r.floor, rm = fl.rooms[fl.cur]; if(!rm.secret || rm.secretFound) return;
+  const {dx, dy, kind} = rm.secret, nk = key(rm.x+dx, rm.y+dy); rm.secretFound = true;
+  if(fl.rooms[nk]){ r.msg = 'Just loose stones. Nothing behind them.'; save(); return updateExplore(); }
+  const L = r.depth, room = {x:rm.x+dx, y:rm.y+dy, t:'empty', hidden:true};
+  if(kind==='hoard') room.t = 'hoard';
+  if(kind==='library'){ room.t = 'library'; room.item = rareItem(L+2, 'scroll'); }
+  if(kind==='armory'){ room.t = 'armory'; room.items = shuffle(['weapon','shield','head','body','hands','feet','neck','ring']).slice(0,3).map(k => genItem(L+2, k)); }
+  if(kind==='champion'){ room.t = 'mon'; let m; for(let i=0;i<25;i++){ m = genMonster(L+1, true); if(m.rarity==='rare') break; } m.elite = true; m.hp = monStats(m).hp; room.m = m; }
+  if(kind==='deathtrap'){ room.t = 'trap'; room.deadly = true; }
+  if(kind==='portal') room.t = 'portal';
+  fl.rooms[nk] = room; const l = fl.cur < nk ? fl.cur+'|'+nk : nk+'|'+fl.cur; fl.links.push(l);
+  r.msg = 'You press on the crack and a section of wall grinds inward. A hidden passage!';
+  toast('You found a secret passage!'); save(); updateExplore();
+}
+function trapChance(rm){ return rm && rm.deadly ? Math.max(.05, disarmChance() - .3) : disarmChance(); }
 function disarmChance(){ const hs = heroStats(); return clamp(.35 + (hs.dex-5)*.04 + (hs.lck-5)*.02 + hs.dodge/200, .15, .92); }
 function disarm(){
   const r = R(), rm = r.floor.rooms[r.floor.cur], hs = heroStats(); if(rm.t!=='trap' || rm.done) return;
   rm.done = true;
-  if(Math.random() < disarmChance()){
-    const g = Math.round(rand(4,9)*r.depth); S.hero.gold += g;
-    r.msg = `Click. You disarm the trap and pocket ${g} gold from the mechanism.`;
+  if(Math.random() < trapChance(rm)){
+    const g = Math.round(rand(4,9)*r.depth*(rm.deadly ? 6 : 1)); S.hero.gold += g;
+    r.msg = rm.deadly ? `Your hands don’t shake once. The last blade locks in place, and the trap’s maker left ${g} gold behind it.` : `Click. You disarm the trap and pocket ${g} gold from the mechanism.`;
   } else {
-    const d = Math.max(1, Math.round(hs.maxhp*.18)); S.hero.hp = Math.max(1, S.hero.hp - d); ouch();
-    r.msg = `It goes off in your hands! Darts hit you for ${d}.`;
+    const d = Math.max(1, Math.round(hs.maxhp*(rm.deadly ? .38 : .18))); S.hero.hp = Math.max(1, S.hero.hp - d); ouch();
+    r.msg = rm.deadly ? `Blades, spikes and darts all at once. You take ${d} damage and barely crawl free.` : `It goes off in your hands! Darts hit you for ${d}.`;
   }
   save(); updateHud(); updateExplore();
 }
 function dash(){
   const r = R(), rm = r.floor.rooms[r.floor.cur], hs = heroStats(); if(rm.t!=='trap' || rm.done) return;
   rm.done = true;
-  const d = Math.max(1, Math.round(hs.maxhp*(.1 - Math.min(.06, (hs.dex-5)*.006))));
+  const d = Math.max(1, Math.round(hs.maxhp*((rm.deadly ? .26 : .1) - Math.min(.06, (hs.dex-5)*.006))));
   S.hero.hp = Math.max(1, S.hero.hp - d); ouch();
-  r.msg = `You sprint across as darts fly. One grazes you for ${d}.`;
+  r.msg = rm.deadly ? `You throw yourself through the gauntlet. It costs you ${d} health.` : `You sprint across as darts fly. One grazes you for ${d}.`;
   save(); updateHud(); updateExplore();
 }
 function openChest(){
@@ -3740,6 +3791,16 @@ const ACT = {
   enterDepths: a => { closeSheet(); enterDungeon(false, +a || 1); },
   enterAbyss: a => { closeSheet(); enterDungeon(true, +a || 1); },
   pack: a => { if(!canAct()) return; openSheet(packSheet(a), 'pack'); },
+  searchSecret: () => searchSecret(),
+  gatherHoard: () => { const r = R(), rm = r.floor.rooms[r.floor.cur]; if(rm.t!=='hoard' || rm.done) return; rm.done = true;
+    const g = Math.round(rand(40,70)*r.depth*(1+heroStats().gold/100)); S.hero.gold += g; r.msg = `You stuff your pockets. ${g} gold!`; toast(`+${g} gold`); save(); updateHud(); updateExplore(); },
+  takeTome: () => { const r = R(), rm = r.floor.rooms[r.floor.cur]; if(rm.t!=='library' || rm.done) return;
+    if(!roomFor(rm.item)){ toast('No room for it. Make space first.'); openSheet(bagSheet(),'bag'); return; }
+    addToBag(rm.item); rm.done = true; r.msg = `You take the ${itemName(rm.item)}.`; save(); updateExplore(); },
+  usePortal: () => { const r = R(), fl = r.floor, rm = fl.rooms[fl.cur]; if(rm.t!=='portal' || rm.done) return;
+    const dest = shuffle(Object.keys(fl.rooms).filter(k => !fl.visited[k] && fl.rooms[k].t!=='stairs'))[0];
+    if(!dest){ r.msg = 'The runes flicker. There’s nowhere left on this floor to send you.'; save(); return updateExplore(); }
+    rm.done = true; fl.prev = fl.cur; fl.cur = dest; fl.visited[dest] = 1; toast('The runes flare. The world folds.'); r.msg = null; enterRoom(); },
   bestiary: () => openSheet(bestiarySheet(), 'bestiary'),
   beast: a => openSheet(beastSheet(a), 'beast'),
   buyPerk: a => { const p = PERKS[a]; if(!p) return; const l = perk(a); if(l >= p.max) return; const c = perkCost(a), need = perkRep(a);
