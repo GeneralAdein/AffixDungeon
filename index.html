@@ -726,6 +726,12 @@ svg[shape-rendering]{display:block}
 .vn.narr .vnface,.vn.narr .vnname{display:none}
 .vn.narr .vntext{font-style:italic;color:#c9bfa6;text-align:center;padding:10px 4px}
 
+
+/* ===== Potion and scroll quick buttons ===== */
+.quick{grid-template-columns:1fr 1fr}
+#quick .qs.qpack{font-size:19px;gap:6px;flex-direction:row;justify-content:center}
+#quick .qs.qpack svg{width:18px;height:18px}
+
 /* ===== New rooms and the Bestiary ===== */
 .bestbtn{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px 10px;background:var(--panel);border:2px solid var(--frame);color:var(--ink);font:inherit;cursor:pointer}
 .bestbtn .bimgs{display:flex;flex:none}
@@ -1480,15 +1486,22 @@ function emptyEquip(){ const e = {}; for(const s of SLOTS) e[s] = null; return e
 const STACK_MAX = 10;
 const isConsumable = it => ['potion','scroll'].includes(IBASE[it.base].kind);
 const stackKey = it => [it.base, it.ilvl, it.pre||'', it.suf||''].join('|');
-function beltLevel(){ return 1 + perk('holster'); }
-function beltCap(){ return BELT_BASE + 3*perk('pouch'); }
-function beltTakes(it){ const k = IBASE[it.base].kind, l = beltLevel(); return (k==='potion' && l >= 1) || (k==='scroll' && l >= 2); }
-function beltCount(){ return (S.hero.belt || []).reduce((a,x) => a + (x.qty||1), 0); }
+/* Potions and scrolls each have their own pack, outside the bag. */
+const POTION_BASE = 8, SCROLL_BASE = 6;
+function packKey(it){ return IBASE[it.base].kind==='scroll' ? 'scrolls' : 'belt'; }
+function packList(key){ return S.hero[key] || (S.hero[key] = []); }
+function packCap(key){ return key==='scrolls' ? SCROLL_BASE + 3*perk('holster') : POTION_BASE + 3*perk('pouch'); }
+function packCount(key){ return packList(key).reduce((a,x) => a + (x.qty||1), 0); }
+function beltTakes(it){ return isConsumable(it); }
+function beltCap(){ return packCap('belt'); }
+function beltCount(){ return packCount('belt') + packCount('scrolls'); }
+function heroLists(){ return [S.hero.bag, packList('belt'), packList('scrolls')]; }
+function listOf(id){ return heroLists().find(l => findIn(l, id)) || S.hero.bag; }
 /* Is there room for this item? Matching potions and scrolls stack, and the belt holds them without using bag slots. */
 function roomFor(it){
   const h = S.hero;
   if(isConsumable(it)){
-    if(beltTakes(it) && beltCount() + (it.qty||1) <= beltCap()) return true;
+    const k = packKey(it); if(packCount(k) + (it.qty||1) <= packCap(k)) return true;
     if(h.bag.some(x => isConsumable(x) && stackKey(x)===stackKey(it) && (x.qty||1) + (it.qty||1) <= STACK_MAX)) return true;
   }
   return h.bag.length < bagMax();
@@ -1497,9 +1510,9 @@ function addToBag(it){
   const h = S.hero;
   if(isConsumable(it)){
     it.qty = it.qty || 1;
-    if(beltTakes(it) && beltCount() + it.qty <= beltCap()){
-      h.belt = h.belt || [];
-      const s = h.belt.find(x => stackKey(x)===stackKey(it)); if(s) s.qty = (s.qty||1) + it.qty; else h.belt.push(it);
+    const k = packKey(it);
+    if(packCount(k) + it.qty <= packCap(k)){
+      const L = packList(k), s = L.find(x => stackKey(x)===stackKey(it)); if(s) s.qty = (s.qty||1) + it.qty; else L.push(it);
       return;
     }
     const s = h.bag.find(x => isConsumable(x) && stackKey(x)===stackKey(it) && (x.qty||1) + it.qty <= STACK_MAX);
@@ -1516,7 +1529,7 @@ function newGame(){
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function load(){
-  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; S.perks = S.perks || {}; S.rep = S.rep || {}; S.mats = S.mats || {}; migrateTown(); activeQuests().slice(1).forEach(q => { q.status = 'offered'; q.have = 0; }); if(S.stones && Object.keys(S.stones).length) S.wallFound = true; if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
+  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; S.perks = S.perks || {}; S.rep = S.rep || {}; S.mats = S.mats || {}; migrateTown(); activeQuests().slice(1).forEach(q => { q.status = 'offered'; q.have = 0; }); if(S.stones && Object.keys(S.stones).length) S.wallFound = true; { const b = S.hero.belt || []; S.hero.scrolls = S.hero.scrolls || []; for(const it of b.filter(x => IBASE[x.base].kind==='scroll')){ b.splice(b.indexOf(it),1); S.hero.scrolls.push(it); } packUp(); } if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
   return false;
 }
 
@@ -1539,6 +1552,7 @@ function monStats(m){
   if(m.elite){ s.hp *= 1.4; s.atk *= 1.15; s.xp *= 2; s.gold *= 2; }
   s.hp = Math.max(1, Math.round(s.hp)); s.crit = Math.max(0, s.crit);
   const tr = TRAITS[b.trait]; if(tr){ applyMods(s, tr); if(tr.set) Object.assign(s, tr.set); }
+  s.hp = Math.max(1, Math.round(s.hp));   // traits can scale health too, so round once more
   if(s.rage && m.hp > 0 && m.hp < s.hp*.5){ s.atk *= 1.35; s.raging = true; }
   return s;
 }
@@ -1802,8 +1816,8 @@ const PERKS = {
   pack:{b:'shop', name:'Larger Pack', desc:'+2 bag slots per level.', max:8, base:3000, pow:1.6, now:l => `Bag holds ${BAG_BASE+2*l} items`},
   drills:{b:'yard', name:'Drills', desc:'+1 stat point per level, yours to spend.', max:10, base:5000, pow:1.5, now:l => `${l} bonus point${l===1?'':'s'} earned`},
   blessing:{b:'temple', name:'Blessing', desc:'+2% max health per level.', max:10, base:4000, pow:1.5, now:l => `+${l*2}% max health`},
-  pouch:{b:'apothecary', name:'Belt Pouches', desc:'+3 potion belt slots per level.', max:5, base:3000, pow:1.5, now:l => `Belt holds ${BELT_BASE+3*l}`},
-  holster:{b:'apothecary', name:'Scroll Holster', desc:'Scrolls go on your belt too.', max:1, base:15000, pow:1, rep:4, now:l => 'Scrolls ride on your belt'},
+  pouch:{b:'apothecary', name:'Potion Pouches', desc:'+3 potion bag slots per level.', max:5, base:3000, pow:1.5, now:l => `Potion bag holds ${POTION_BASE+3*l}`},
+  holster:{b:'apothecary', name:'Scroll Case', desc:'+3 scroll bag slots per level.', max:5, base:3000, pow:1.5, now:l => `Scroll bag holds ${SCROLL_BASE+3*l}`},
   favor:{b:'smithy', name:'Smith’s Favor', desc:'Shop gear is one item level higher per level.', max:3, base:8000, pow:1.6, repStep:3, now:l => `Shop gear +${l} levels`},
   vault:{b:'bank', name:'Vault', desc:'Lose 5% less gold when you die, per level.', max:5, base:4000, pow:1.6, now:l => `Death costs ${50-l*5}% of your gold`},
   charts:{b:'cartographer', name:'Master Charts', desc:'The stairs are marked on every floor’s map.', max:1, base:100000, pow:1, rep:6, now:l => 'Stairs always marked'}
@@ -2299,7 +2313,7 @@ function shopView(){
   } else {
     const gear = h.bag.filter(isGear), total = gear.reduce((a,it)=>a+sellPrice(it),0);
     body = h.bag.length ? `${gear.length?`<div class="stack" style="margin-top:0;margin-bottom:10px"><button class="btn primary" data-act="sellGear">Sell all ${gear.length} gear for ${priceTag(total)}</button></div>`:''}
-      <div class="rows">${[...h.bag, ...(h.belt||[])].map(it => itemRow(it, 'shopSell', `<button class="btn sm" data-act="sell" data-arg="${it.uid}">${priceTag(sellPrice(it))}</button>`)).join('')}</div>
+      <div class="rows">${heroLists().flat().map(it => itemRow(it, 'shopSell', `<button class="btn sm" data-act="sell" data-arg="${it.uid}">${priceTag(sellPrice(it))}</button>`)).join('')}</div>
       <p class="sub" style="margin-top:8px">Selling gear keeps your potions and scrolls.</p>` : `<p class="empty-note">Your bag is empty. Pick up loot in the dungeon and sell it here.</p>`;
   }
   return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
@@ -2457,12 +2471,20 @@ function updateCombatUI(){
   $('#log').innerHTML = r.log.map(l => `<li>${l}</li>`).join('');
   const ok = canAct();
   for(const id of ['bAttack','bDefend','bFlee']) $('#'+id).disabled = !ok;
-  const cons = [...(S.hero.belt||[]), ...S.hero.bag.filter(isConsumable)].slice(0,4);
-  let q = cons.map(it => `<button class="qs r-${it.rarity}" data-act="use" data-arg="${it.uid}" ${ok?'':'disabled'} aria-label="Use ${itemName(it)}">${ICON[IBASE[it.base].icon]}<span>${quickLabel(it)}</span></button>`).join('');
-  for(let i=cons.length;i<4;i++) q += `<button class="qs empty" disabled>Empty</button>`;
-  $('#quick').innerHTML = q;
+  const pots = consOf('potion'), scr = consOf('scroll'), n = L => L.reduce((a,x) => a + (x.qty||1), 0);
+  $('#quick').innerHTML = `<button class="qs qpack" data-act="pack" data-arg="potion" ${ok && pots.length ? '' : 'disabled'}>${ICON.potion}<span>Potions (${n(pots)})</span></button>
+    <button class="qs qpack" data-act="pack" data-arg="scroll" ${ok && scr.length ? '' : 'disabled'}>${ICON.scroll}<span>Scrolls (${n(scr)})</span></button>`;
 }
 
+function consOf(kind){ return [...packList(kind==='scroll' ? 'scrolls' : 'belt'), ...S.hero.bag.filter(it => IBASE[it.base].kind===kind)]; }
+function packSheet(kind){
+  const L = consOf(kind), title = kind==='potion' ? 'Potions' : 'Scrolls';
+  return `<div class="grab"></div><h3 class="sheet-title">${title}</h3>
+    <div class="rows" style="margin-top:8px">${L.length ? L.map(it => itemRow(it, 'bag', `<button class="btn sm primary" data-act="use" data-arg="${it.uid}">${kind==='potion' ? 'Drink' : 'Read'}</button>`)).join('') : `<p class="empty-note">No ${title.toLowerCase()}.</p>`}</div>
+    <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
+}
+/* move any loose potions and scrolls out of the bag and into their packs */
+function packUp(){ const h = S.hero; for(const it of h.bag.filter(isConsumable)){ const k = packKey(it); if(packCount(k) + (it.qty||1) <= packCap(k)){ h.bag.splice(h.bag.indexOf(it),1); addToBag(it); } } }
 /* ============ sheets ============ */
 let sheetKind = null;
 function openSheet(html, kind=null){ sheetKind = kind; $('#sheet').innerHTML = html; $('#sheet').scrollTop = 0; const w = $('#sheetWrap'); w.classList.add('open'); w.setAttribute('aria-hidden','false'); }
@@ -2490,15 +2512,16 @@ function bagSheet(){
   for(let i=h.bag.length;i<bagMax();i++) cells += `<div class="cell empty"></div>`;
   const lootBtn = S.run && S.run.phase==='loot' && S.run.loot.length ? `<button class="btn primary" data-act="closeSheet">Back to loot (${S.run.loot.length})</button>` : '';
   return `<div class="grab"></div><h3 class="sheet-title">Inventory</h3>
-    <p class="bagworth">Everything in your bag sells for ${priceTag([...h.bag, ...(h.belt||[])].reduce((a,it)=>a+sellPrice(it)*(it.qty||1),0))}</p>
+    <p class="bagworth">Everything in your bag sells for ${priceTag(heroLists().flat().reduce((a,it)=>a+sellPrice(it)*(it.qty||1),0))}</p>
     ${dollHtml()}
     ${heroStatLine(hs)}
     <h3 class="section-h" style="margin-top:4px">Bag <small class="sub">${h.bag.length} of ${bagMax()}</small></h3>
     <p class="sub" style="margin-bottom:6px">Tap an item to compare it with what you’re wearing. ▲ marks a likely upgrade.</p>
     <div class="grid">${cells}</div>
     ${matsHtml()}
-    ${beltLevel() ? `<h3 class="section-h">Potion Belt <small class="sub">${beltCount()} of ${beltCap()}${beltLevel()>=2 ? ', potions and scrolls' : ', potions'}</small></h3>
-      <div class="grid">${(h.belt||[]).map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv"><span class="coin"></span>${sellPrice(it)}</span><span class="qx">x${it.qty||1}</span></button>`).join('') || '<p class="empty-note" style="grid-column:1/-1">Potions you pick up go here automatically.</p>'}</div>` : ''}
+    ${['belt','scrolls'].map(k => { const L = packList(k);
+      return `<h3 class="section-h">${k==='belt' ? 'Potion bag' : 'Scroll bag'} <small class="sub">${packCount(k)} of ${packCap(k)}, doesn’t use bag space</small></h3>
+      <div class="grid">${L.map(it => `<button class="cell r-${it.rarity}" data-act="item" data-arg="${it.uid}|bag" aria-label="${itemName(it)}">${ICON[IBASE[it.base].icon]}<span class="lv">${it.ilvl}</span><span class="cv"><span class="coin"></span>${sellPrice(it)}</span><span class="qx">x${it.qty||1}</span></button>`).join('') || `<p class="empty-note" style="grid-column:1/-1">${k==='belt' ? 'Potions' : 'Scrolls'} you pick up go here automatically.</p>`}</div>`; }).join('')}
     <div class="sheet-actions">${lootBtn}<button class="btn" data-act="stats">Character stats${S.hero.points?` (+${S.hero.points})`:''}</button><button class="btn" data-act="closeSheet">Close</button></div>`;
 }
 function lootSheet(){
@@ -3478,7 +3501,7 @@ function onDeath(){
   r.killer = monName(r.mon);
   r.lostItems = S.hero.bag.length; r.lostGold = Math.floor(S.hero.gold*(.5 - .05*perk('vault')));
   { const st = stats(); st.deaths++; st.mostLost = Math.max(st.mostLost, r.lostGold); }
-  r.lostItems += beltCount(); S.hero.bag = []; S.hero.belt = [];
+  r.lostItems += beltCount(); S.hero.bag = []; S.hero.belt = []; S.hero.scrolls = [];
   // until the Abyss is open, any death empties the Old Wall
   if(!S.abyss && S.stones && Object.keys(S.stones).length){ r.lostWall = Object.keys(S.stones).length; r.wallKnown = !!S.wallFound; S.stones = {}; S.hobTalk = S.wallFound && stonesPlaced() === 0 && r.lostWall ? 'emptied' : null; } S.hero.gold -= r.lostGold;
   save();
@@ -3505,11 +3528,11 @@ function findItem(id){
   for(const sl of SLOTS) if(h.equip[sl] && h.equip[sl].uid===id) return h.equip[sl];
   const mer = (merchantRoom() || {}).items || [];
   const cur = S.run && S.run.floor && S.run.floor.rooms ? S.run.floor.rooms[S.run.floor.cur] : null, rack = cur && cur.t==='armory' ? cur.items || [] : [];
-  for(const list of [h.bag, h.belt || [], S.stash, S.shop.items, S.run ? S.run.loot : [], mer, rack]){ const f = findIn(list, id); if(f) return f.it; }
+  for(const list of [...heroLists(), S.stash, S.shop.items, S.run ? S.run.loot : [], mer, rack]){ const f = findIn(list, id); if(f) return f.it; }
   return null;
 }
 function useItem(id){
-  const h = S.hero, src = findIn(h.bag, id) ? h.bag : (h.belt || []), f = findIn(src, id); if(!f) return;
+  const h = S.hero, src = listOf(id), f = findIn(src, id); if(!f) return;
   const it = f.it, b = IBASE[it.base], s = itemStats(it);
   const inCombat = !!(S.run && S.run.phase==='combat');
   if(inCombat && !canAct()) return;
@@ -3649,7 +3672,7 @@ const ACT = {
   item: a => { const [id, ctx] = a.split('|'); const it = findItem(id); if(it) openSheet(itemSheet(it, ctx), 'item'); },
   equip: a => equipItem(a),
   unequip: a => unequip(a),
-  drop: a => { const list = findIn(S.hero.bag, a) ? S.hero.bag : (S.hero.belt||[]); const f = findIn(list, a); if(!f) return; list.splice(f.i,1); toast(`Dropped ${itemName(f.it)}.`); save(); render(); openSheet(bagSheet(),'bag'); },
+  drop: a => { const list = listOf(a); const f = findIn(list, a); if(!f) return; list.splice(f.i,1); toast(`Dropped ${itemName(f.it)}.`); save(); render(); openSheet(bagSheet(),'bag'); },
   take: a => takeLoot(a),
   drinkLoot: a => drinkLoot(a),
   takeAll: () => { const r = R(); if(!r.loot.some(roomFor)){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; } let n = 0; for(const it of r.loot.slice()){ if(roomFor(it)){ r.loot.splice(r.loot.indexOf(it),1); addToBag(it); n++; } } if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); if(r.loot.length){ toast(`Took ${n}. Your bag is full now.`); openSheet(bagSheet(),'bag'); } else toast(`Took ${n} item${n===1?'':'s'}.`); },
@@ -3674,7 +3697,7 @@ const ACT = {
   shopTab: a => { shopTab = a; render(); },
   buy: a => { const f = findIn(S.shop.items, a); if(!f) return; const p = itemValue(f.it); if(S.hero.gold < p || !roomFor(f.it)) return; S.hero.gold -= p; S.shop.items.splice(f.i,1); addToBag(f.it); closeSheet(); toast(`Bought ${itemName(f.it)}.`); save(); render(); },
   buyStaple: a => { const it = mk(a, stapleLvl()); const p = itemValue(it); if(S.hero.gold < p || !roomFor(it)) return; S.hero.gold -= p; addToBag(it); toast(`Bought ${itemName(it)}.`); save(); render(); },
-  sell: a => { const list = findIn(S.hero.bag, a) ? S.hero.bag : (S.hero.belt||[]); const f = findIn(list, a); if(!f) return; const p = sellPrice(f.it); S.hero.gold += p; if((f.it.qty||1) > 1) f.it.qty--; else list.splice(f.i,1); closeSheet(); toast(`Sold for ${p} gold.`); save(); render(); },
+  sell: a => { const list = listOf(a); const f = findIn(list, a); if(!f) return; const p = sellPrice(f.it); S.hero.gold += p; if((f.it.qty||1) > 1) f.it.qty--; else list.splice(f.i,1); closeSheet(); toast(`Sold for ${p} gold.`); save(); render(); },
   sellGear: () => { const gear = S.hero.bag.filter(isGear); const p = gear.reduce((a,it)=>a+sellPrice(it),0); S.hero.bag = S.hero.bag.filter(it => !isGear(it)); S.hero.gold += p; toast(`Sold ${gear.length} item${gear.length===1?'':'s'} for ${p} gold.`); save(); render(); },
   restock: () => { if(S.hero.gold < 15) return; S.hero.gold -= 15; S.shop = genShop(); save(); render(); },
   rest: () => { const c = restCost(); if(S.hero.gold < c) return; S.hero.gold -= c; S.hero.hp = heroStats().maxhp; toast('You sleep soundly. Health fully restored.'); save(); render(); },
@@ -3714,6 +3737,7 @@ const ACT = {
     save(); render(); },
   enterDepths: a => { closeSheet(); enterDungeon(false, +a || 1); },
   enterAbyss: a => { closeSheet(); enterDungeon(true, +a || 1); },
+  pack: a => { if(!canAct()) return; openSheet(packSheet(a), 'pack'); },
   bestiary: () => openSheet(bestiarySheet(), 'bestiary'),
   beast: a => openSheet(beastSheet(a), 'beast'),
   buyPerk: a => { const p = PERKS[a]; if(!p) return; const l = perk(a); if(l >= p.max) return; const c = perkCost(a), need = perkRep(a);
@@ -3721,7 +3745,7 @@ const ACT = {
     S.hero.gold -= c; S.perks = S.perks || {}; S.perks[a] = l+1;
     if(a==='drills') S.hero.points = (S.hero.points||0) + 1;
     if(a==='favor') S.shop = genShop();
-    if(a==='pouch' || a==='holster'){ S.hero.belt = S.hero.belt || []; for(const it of S.hero.bag.filter(x => beltTakes(x))){ if(beltCount() + (it.qty||1) <= beltCap()){ S.hero.bag.splice(S.hero.bag.indexOf(it),1); addToBag(it); } } }
+    if(a==='pouch' || a==='holster') packUp();
     toast(`${p.name} is now level ${l+1}.`); save(); render(); },
   acceptQuest: a => { const [b,id] = a.split('|'); const q = board(b).find(x => x.id===id); if(!q || q.status!=='offered') return; const cur = activeQuests()[0]; if(cur){ toast(`Finish or abandon “${cur.label}” first.`); return; } q.status = 'active'; q.have = 0; toast('Quest accepted. Progress counts when you make it back alive.'); save(); render(); if(sheetKind==='notice') openSheet(noticeSheet(),'notice'); },
   dropQuest: a => { const [b,id] = a.split('|'); const qs = board(b), i = qs.findIndex(x => x.id===id); if(i < 0) return; qs[i] = genQuest(b, qs[i].diff); save(); render(); },
