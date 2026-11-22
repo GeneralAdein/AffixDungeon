@@ -1547,7 +1547,7 @@ function addToBag(it){
 function bagMax(){ return BAG_BASE + 2*perk('pack'); }
 function newGame(){
   const equip = emptyEquip(); equip.weapon = mk('shortsword'); equip.body = mk('padded');
-  S = {v:2, hero:{lvl:1,xp:0,hp:1,gold:40,attr:{str:0,dex:0,vit:0,int:0,lck:0},points:0,equip,bag:[mk('potion'),mk('potion'),mk('flame')],deepest:0}, stash:[], shop:null, run:null, screen:'town', town:{}, perks:{}, rep:{}, quests:{}, mats:{}, townMigrated:true};
+  S = {v:2, hero:{lvl:1,xp:0,hp:1,gold:40,attr:{str:0,dex:0,vit:0,int:0,lck:0},points:0,equip,bag:[mk('potion'),mk('potion'),mk('flame')],deepest:0}, stash:[], shop:null, run:null, screen:'town', town:{}, perks:{}, rep:{}, quests:{}, mats:{}, townMigrated:true, intro:true};
   S.hero.hp = heroStats().maxhp;
   S.shop = genShop();
 }
@@ -2250,9 +2250,28 @@ const HOB_TALKS = {
 function hobTalk(id, done){
   const lines = HOB_TALKS[id].slice();
   if(id==='another' && stonesPlaced() >= 4) lines.push(['hob', 'Not many holes left now. I’d be lying if I said that didn’t scare me a little.']);
+  vnPlay(lines, 'Big Hob', HOB_GRAVE, done);
+}
+/* The opening story: plays once over the town when a new adventurer arrives. */
+const INTRO_STORY = [
+  ['narr', 'You walk into Emberhold with a short sword, a padded coat, and not much else.'],
+  ['narr', 'Nobody here knows your name. Nobody knows where you’ve been, or what you did there.'],
+  ['narr', 'Good deeds or bad, none of it followed you through the town gate. Here, you have no past at all.'],
+  ['narr', 'But you’ve heard the stories. Everyone has. And standing in the square, you can feel it: the stories are true.'],
+  ['narr', 'At the edge of town the ground simply opens. The Dungeon Gate. Stairs going down, and down, and down.'],
+  ['narr', 'None of the locals go near it. Not the smith, not the soldiers in the training yard, not the hard cases in the tavern. They don’t dare.'],
+  ['narr', 'So Emberhold gets by on strangers like you. There are shops and a smithy, a training yard, a temple, and a guild hall that remembers everyone who goes below.'],
+  ['narr', 'Explore a little before you decide to head down. Nobody is going to rush you.'],
+  ['narr', 'Up here, your past weighs nothing. Down there, only two things will weigh on you: death, or riches.']
+];
+function storyIntro(){
+  if(!S.intro) return;
+  vnPlay(INTRO_STORY, 'Emberhold', null, () => { delete S.intro; save(); });
+}
+function vnPlay(lines, label, face, done){
   let i = 0, timer = null, full = '';
-  const el = document.createElement('div'); el.className = 'vn'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Big Hob');
-  el.innerHTML = `<div class="vnbox"><div class="vnface"><img src="${HOB_GRAVE}" alt=""></div><div class="vnbody"><div class="vnname">Big Hob</div><p class="vntext" aria-live="polite"></p><span class="vnmore">▼</span></div></div>`;
+  const el = document.createElement('div'); el.className = 'vn'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', label);
+  el.innerHTML = `<div class="vnbox"><div class="vnface">${face ? `<img src="${face}" alt="">` : ''}</div><div class="vnbody"><div class="vnname">${label}</div><p class="vntext" aria-live="polite"></p><span class="vnmore">▼</span></div></div>`;
   const txt = el.querySelector('.vntext');
   const finish = () => { clearInterval(timer); timer = null; txt.textContent = full; el.classList.add('ready'); };
   const show = () => {
@@ -3845,7 +3864,7 @@ const ACT = {
   reforge: a => { const [id,w] = a.split('|'); reforge(id, w); },
   townGo: a => townGo(a),
   rumor: () => toast(pick(RUMORS)),
-  reset: () => { closeSheet(); newGame(); save(); render(); toast('A new adventurer arrives in Emberhold.'); }
+  reset: () => { closeSheet(); newGame(); save(); render(); storyIntro(); }
 };
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if(!el || el.disabled) return;
@@ -3862,6 +3881,7 @@ if(!load()) newGame();
 render();
 if(hadOldSave){ toast('Gear works differently now, so a fresh character starts in Emberhold.'); try{ localStorage.removeItem('affix-deep-v1'); }catch(e){} save(); }
 if(S.run && S.run.phase==='combat'){ if(S.run.pg < 100) advance(); }
+storyIntro();
 
 
 </script>
