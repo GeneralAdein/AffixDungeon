@@ -751,10 +751,38 @@ svg[shape-rendering]{display:block}
 .room .crack.c-10{left:-4px;top:calc(50% - 4px);transform:rotate(-90deg)}
 
 /* ===== Secret passages ===== */
-.youbar{display:flex;align-items:center;gap:8px;padding:8px 16px 0;flex:none}
-.youbar .ylabel{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:16px;color:#e0743a;flex:none}
-.youbar .yhp{flex:1;max-width:none;margin:0;height:18px}
-.youbar .yhp span{font-size:17px;line-height:14px}
+.youcard{position:relative;display:flex;align-items:center;gap:10px;margin:8px 14px 0;padding:6px 8px;background:var(--panel);border:2px solid var(--frame);flex:none}
+.youcard .yav{position:relative;width:46px;height:46px;flex:none;background:#0b0b10;border:2px solid var(--shade);overflow:hidden}
+.youcard .yav img{width:100%;height:100%;image-rendering:pixelated;display:block}
+.youcard .yav::after{content:"";position:absolute;inset:0;background:#ff2020;opacity:0}
+.youcard .ymain{flex:1;min-width:0}
+.youcard .yname{display:flex;align-items:baseline;gap:8px;font-size:17px;line-height:1}
+.youcard .yname b{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:18px;color:var(--torch)}
+.youcard .ylv{margin-left:auto;color:var(--muted)}
+.youcard .ywarn{display:none;color:var(--bad)}
+.youcard .yhp{height:24px;margin:5px 0 0;max-width:none}
+.youcard .yhp span{font-size:20px;line-height:20px}
+.yhp .ylost{position:absolute;left:0;top:0;bottom:0;background:#fff repeating-linear-gradient(90deg,transparent 0 6px,rgba(0,0,0,.12) 6px 8px);transition:width .5s ease-in .6s}
+.youcard.hurt .yhp .ylost{animation:yghost .6s steps(1)}
+@keyframes yghost{0%,34%,67%{background-color:#fff}17%,50%,84%{background-color:#ffb02e}}
+.yhp .ylost.up{transition:none}
+.youcard.hurt{animation:yshake .36s steps(4)}
+.youcard.hurt .yav::after{animation:yflash .42s steps(3)}
+@keyframes yshake{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+@keyframes yflash{0%{opacity:.75}100%{opacity:0}}
+.youcard.low{border-color:var(--bad);animation:ylow 1s steps(2) infinite}
+.youcard.low .ywarn{display:inline}
+.youcard.low.hurt{animation:yshake .36s steps(4)}
+@keyframes ylow{50%{box-shadow:0 0 0 3px var(--bad)}}
+#youFloat .fnum{top:-14px;font-size:44px;color:#ff4a3a;text-shadow:3px 3px 0 #000}
+#youFloat .fnum.crit{font-size:56px;color:#ff2a1a}
+#youFloat .fnum.heal{color:#7ae89a}
+#youFloat .fnum.miss{font-size:30px;color:#d7dde6}
+#youFloat .fnum.poison{color:#a6e360}
+.dun.fight.lowhp .stage-frame::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:4;box-shadow:inset 0 0 46px 6px rgba(220,30,30,.65);animation:ylowglow 1.2s ease-in-out infinite alternate}
+@keyframes ylowglow{from{opacity:.55}to{opacity:1}}
+.log li.hurt,.log li.hurt:first-child{color:var(--bad)}
+.log li.deal,.log li.deal:first-child{color:var(--rare)}
 .btn.qgo{font-size:15px;line-height:1.05;padding:4px 8px;text-align:center}
 .qhave{font-weight:400}
 .rtext .secret{color:#7ad8e8}
@@ -1814,11 +1842,11 @@ function toast(msg){
   clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 function floatNum(text, target, cls=''){
-  const host = target==='mon' ? $('#monFloat') : $('#heroFloat');
+  const host = target==='mon' ? $('#monFloat') : ($('#youFloat') || $('#heroFloat'));
   if(!host) return;
   const el = document.createElement('span');
   el.className = 'fnum ' + cls; el.textContent = text;
-  el.style.left = (target==='mon' ? rand(30,62) : rand(12,40)) + '%';
+  el.style.left = (target==='mon' ? rand(30,62) : host.id==='youFloat' ? rand(42,70) : rand(12,40)) + '%';
   host.appendChild(el); setTimeout(()=>el.remove(), 1000);
 }
 function pulse(el, cls, ms=340){ if(!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls), ms); }
@@ -2402,7 +2430,12 @@ function dungeonView(){
         <div class="stage-frame"><div class="stage" data-act="monDetail" role="button" aria-label="Show monster details">${monArt(m,'monWrap')}<div class="floats" id="monFloat"></div></div></div>
         ${monPanel(m, tags)}
       </div>
-      <div class="youbar"><span class="ylabel">You</span><div class="mhp yhp"><i id="heroHpFill"></i><span id="heroHpTxt"></span></div></div>
+      <div class="youcard" id="youCard">
+        <div class="yav"><img src="${HERO_ART}" alt=""></div>
+        <div class="ymain"><div class="yname"><b>You</b><span class="ywarn">Low health!</span><span class="ylv">Lv ${S.hero.lvl}</span></div>
+          <div class="mhp yhp"><b class="ylost" id="heroGhost" style="width:${youGhostPct(m)}%"></b><i id="heroHpFill"></i><span id="heroHpTxt"></span></div></div>
+        <div class="floats" id="youFloat"></div>
+      </div>
       <div class="order" id="order"></div>
       <ul class="log" id="log"></ul>
       <div class="actions">
@@ -2509,7 +2542,7 @@ function updateCombatUI(){
   if(r.mon) r.mon.hp = Math.ceil(r.mon.hp); S.hero.hp = Math.ceil(S.hero.hp);
   updateHud();
   const m = r.mon, ms = monStats(m);
-  { const mx = heroStats().maxhp, hf = $('#heroHpFill'); if(hf){ paintHp(hf, S.hero.hp/mx); $('#heroHpTxt').textContent = `${Math.max(0,S.hero.hp)} / ${mx}`; } }
+  updateYouCard(m);
   const f = $('#monHpFill'); if(!f) return;
   paintHp(f, m.hp/ms.hp);
   $('#monHpTxt').textContent = `${Math.max(0,m.hp)} / ${ms.hp}`;
@@ -2519,7 +2552,7 @@ function updateCombatUI(){
   $('#heroStatus').innerHTML = statusChips(r.pb, true);
   const mini = `<div class="oc"><img src="${ART[m.base]}" alt=""></div>`;
   $('#order').innerHTML = '<small>Next</small>' + predictOrder(7).map((x,i) => x==='p' ? `<div class="oc p ${i===0?'first':''}">You</div>` : mini.replace('class="oc"', `class="oc ${i===0?'first':''}"`)).join('');
-  $('#log').innerHTML = r.log.map(l => `<li>${l}</li>`).join('');
+  $('#log').innerHTML = r.log.map(l => `<li class="${logTone(l)}">${l}</li>`).join('');
   const ok = canAct();
   for(const id of ['bAttack','bDefend','bFlee']) $('#'+id).disabled = !ok;
   const pots = consOf('potion'), scr = consOf('scroll'), n = L => L.reduce((a,x) => a + (x.qty||1), 0);
@@ -2527,6 +2560,29 @@ function updateCombatUI(){
     <button class="qs qpack" data-act="pack" data-arg="scroll" ${ok && scr.length ? '' : 'disabled'}>${ICON.scroll}<span>Scrolls (${n(scr)})</span></button>`;
 }
 
+/* Your card in a fight: a big health bar where the chunk you just lost lingers pale before draining,
+   a shake and red flash when you're hit, and a red warning when you're low. */
+const youLast = {uid:null, hp:0};
+function youGhostPct(m){ const mx = heroStats().maxhp; if(youLast.uid !== m.uid){ youLast.uid = m.uid; youLast.hp = S.hero.hp; } return Math.max(0, Math.min(100, youLast.hp/mx*100)); }
+function updateYouCard(m){
+  const mx = heroStats().maxhp, hp = Math.max(0, S.hero.hp), p = hp/mx, hf = $('#heroHpFill'), g = $('#heroGhost'), card = $('#youCard');
+  if(!hf) return;
+  if(youLast.uid !== m.uid){ youLast.uid = m.uid; youLast.hp = hp; }
+  paintHp(hf, p); $('#heroHpTxt').textContent = `${hp} / ${mx}`;
+  if(g){ g.classList.toggle('up', hp > youLast.hp); g.style.width = Math.min(100, p*100) + '%'; }
+  if(hp < youLast.hp && card) pulse(card, 'hurt', 620);
+  youLast.hp = hp;
+  const low = hp > 0 && p <= .25;
+  if(card) card.classList.toggle('low', low);
+  const f = document.querySelector('.dun.fight'); if(f) f.classList.toggle('lowhp', low);
+}
+/* colour the fight log: what hurts you in red, what you deal in gold */
+function logTone(l){
+  const t = l.replace(/<[^>]+>/g, '');
+  if(/\byou for \d|^You burn|taking only|backfires/i.test(t)) return 'hurt';
+  if(/^You (hit|crit|strike|smite)/.test(t)) return 'deal';
+  return '';
+}
 function consOf(kind){ return [...packList(kind==='scroll' ? 'scrolls' : 'belt'), ...S.hero.bag.filter(it => IBASE[it.base].kind===kind)]; }
 function packSheet(kind){
   const L = consOf(kind), title = kind==='potion' ? 'Potions' : 'Scrolls';
