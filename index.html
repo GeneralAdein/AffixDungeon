@@ -748,6 +748,8 @@ svg[shape-rendering]{display:block}
 .room .crack.c-10{left:-4px;top:calc(50% - 4px);transform:rotate(-90deg)}
 
 /* ===== Secret passages ===== */
+.btn.qgo{font-size:15px;line-height:1.05;padding:4px 8px;text-align:center}
+.qhave{font-weight:400}
 .rtext .secret{color:#7ad8e8}
 
 /* ===== New rooms and the Bestiary ===== */
@@ -2003,11 +2005,12 @@ function perkRow(id){
 function questRow(q){
   const prog = questProgress(q), pct = Math.round(prog/q.need*100), D = DIFF[q.diff];
   const busy = activeQuests().find(x => x.id !== q.id);
-  const btn = q.status==='offered' ? (busy ? `<button class="btn sm" disabled title="Finish or abandon your current quest first">On a quest</button>` : `<button class="btn sm" data-act="acceptQuest" data-arg="${q.b}|${q.id}">Accept</button>`)
+  const btn = q.status==='offered' ? (busy ? `<button class="btn sm qgo" data-act="go" data-arg="${busy.b}" title="Your current quest is from ${BUILDINGS[busy.b].name}">Quest at<br>${BUILDINGS[busy.b].name.replace('Training ','')} ›</button>` : `<button class="btn sm" data-act="acceptQuest" data-arg="${q.b}|${q.id}">Accept</button>`)
     : questReady(q) ? `<button class="btn sm equipnow" data-act="turnIn" data-arg="${q.b}|${q.id}">Turn in</button>`
     : `<button class="btn sm" data-act="dropQuest" data-arg="${q.b}|${q.id}">Abandon</button>`;
   return `<div class="row upg quest ${q.diff}"><div class="upgtext"><span class="qd">${D.n}</span> <span class="nm">${q.label}</span>
     <br><span class="sub">Reward: <span class="price"><span class="coin"></span>${D.gold}</span> and ${D.rep} reputation</span>
+    ${q.kind==='gather' && q.status==='offered' ? (() => { const have = (S.mats||{})[q.target]||0; return `<br><span class="sub qhave ${have >= q.need ? 'up' : ''}">You have ${have} of ${q.need}${have >= q.need ? '. Ready to turn in as soon as you accept.' : ''}</span>`; })() : ''}
     ${q.status==='active' ? `<div class="qbar"><i style="width:${pct}%"></i><span>${prog}/${q.need}</span></div>` : ''}</div>${btn}</div>`;
 }
 function buildingView(b){
