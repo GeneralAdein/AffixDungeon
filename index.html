@@ -748,6 +748,10 @@ svg[shape-rendering]{display:block}
 .room .crack.c-10{left:-4px;top:calc(50% - 4px);transform:rotate(-90deg)}
 
 /* ===== Secret passages ===== */
+.youbar{display:flex;align-items:center;gap:8px;padding:8px 16px 0;flex:none}
+.youbar .ylabel{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:16px;color:#e0743a;flex:none}
+.youbar .yhp{flex:1;max-width:none;margin:0;height:18px}
+.youbar .yhp span{font-size:17px;line-height:14px}
 .btn.qgo{font-size:15px;line-height:1.05;padding:4px 8px;text-align:center}
 .qhave{font-weight:400}
 .rtext .secret{color:#7ad8e8}
@@ -2374,6 +2378,7 @@ function dungeonView(){
         <div class="stage-frame"><div class="stage" data-act="monDetail" role="button" aria-label="Show monster details">${monArt(m,'monWrap')}<div class="floats" id="monFloat"></div></div></div>
         ${monPanel(m, tags)}
       </div>
+      <div class="youbar"><span class="ylabel">You</span><div class="mhp yhp"><i id="heroHpFill"></i><span id="heroHpTxt"></span></div></div>
       <div class="order" id="order"></div>
       <ul class="log" id="log"></ul>
       <div class="actions">
@@ -2480,6 +2485,7 @@ function updateCombatUI(){
   if(r.mon) r.mon.hp = Math.ceil(r.mon.hp); S.hero.hp = Math.ceil(S.hero.hp);
   updateHud();
   const m = r.mon, ms = monStats(m);
+  { const mx = heroStats().maxhp, hf = $('#heroHpFill'); if(hf){ paintHp(hf, S.hero.hp/mx); $('#heroHpTxt').textContent = `${Math.max(0,S.hero.hp)} / ${mx}`; } }
   const f = $('#monHpFill'); if(!f) return;
   paintHp(f, m.hp/ms.hp);
   $('#monHpTxt').textContent = `${Math.max(0,m.hp)} / ${ms.hp}`;
