@@ -57,6 +57,9 @@ svg[shape-rendering]{display:block}
 .xpbar{width:36px;flex:none;height:8px;background:var(--panel2)}
 .xpbar i{background:var(--xp)}
 .hud-gold{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.hud-mus{position:relative;flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;margin:-6px -6px -6px -4px;padding:0;background:none;border:0;color:var(--ink)}
+.hud-mus.off{color:var(--muted)}
+.hud-mus.off::after{content:"";position:absolute;left:3px;right:3px;top:12px;height:3px;background:var(--ink);box-shadow:0 0 0 1px var(--panel);transform:rotate(-45deg)}
 .coin{width:12px;height:12px;background:#e8b83a;box-shadow:inset -2px -2px 0 #9c6c10,inset 2px 2px 0 #ffe08a;clip-path:var(--notch);flex:none;display:inline-block}
 
 /* Buttons */
@@ -812,6 +815,7 @@ svg[shape-rendering]{display:block}
     <button class="hud-lv" data-act="stats" aria-label="Open character stats"><span id="lvTxt"></span><div class="bar xpbar"><i id="xpFill"></i></div></button>
     <button class="hud-bag" id="hudBag" data-act="bag" aria-label="Open inventory"><span id="bagIco"></span><span id="bagTxt"></span></button>
     <div class="hud-gold"><span class="coin"></span><span id="goldTxt"></span></div>
+    <button class="hud-mus" id="musBtn" data-act="music" aria-label="Music on" aria-pressed="true"><svg viewBox="0 0 8 8" width="16" height="16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h5v2H4v4H3zM7 2h1v4H7zM1 5h3v3H1zM5 5h3v2H5z"/></svg></button>
     <div id="heroFloat" class="floats hero-floats"></div>
   </header>
   <main id="view"></main>
@@ -1799,6 +1803,7 @@ function updateHud(){
   $('#lvTxt').innerHTML = `Lv ${h.lvl}${h.points?' <span class="ptsdot">+'+h.points+'</span>':''}`;
   $('#xpFill').style.width = (h.xp/xpNeed(h.lvl)*100) + '%';
   $('#goldTxt').textContent = h.gold;
+  syncMusicBtn();
   { const st = stats(); if(h.gold > st.mostGold) st.mostGold = h.gold; }
   const bi = $('#bagIco'); if(bi && !bi.innerHTML) bi.innerHTML = ICON.bag;
   $('#bagTxt').textContent = `${h.bag.length}/${bagMax()}`; $('#hudBag').classList.toggle('full', h.bag.length >= bagMax());
@@ -3864,6 +3869,7 @@ const ACT = {
   reforge: a => { const [id,w] = a.split('|'); reforge(id, w); },
   townGo: a => townGo(a),
   rumor: () => toast(pick(RUMORS)),
+  music: () => { Music.toggle(); syncMusicBtn(); },
   reset: () => { closeSheet(); newGame(); save(); render(); storyIntro(); }
 };
 document.addEventListener('click', e => {
@@ -3874,6 +3880,164 @@ document.addEventListener('keydown', e => {
   if(e.key==='Escape' && sheetOpen()) closeSheet();
   if((e.key==='Enter'||e.key===' ') && e.target.matches('[role="button"][data-act]')){ e.preventDefault(); e.target.click(); }
 });
+
+/* ============ music ============
+   Generated live with Web Audio, no sound files. The mood follows the game on its own:
+   town (light and airy), dungeon (slow and dark), Abyss (slower, darker) and champion fights
+   (fast and dark). Browsers only allow sound after a tap, so it starts on your first one. */
+const Music = (() => {
+  let ctx = null, master = null, noise = null, timer = null, cur = null, step = 0, nextT = 0, phrase = null, on = true;
+  const bus = {};
+  try{ on = localStorage.getItem('affix-deep-music') !== 'off'; }catch(e){}
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  const sc = (M, k) => M.scale[((k % 7) + 7) % 7] + 12 * Math.floor(k / 7);
+  const chord = (M, d) => [0, 2, 4].map(i => M.root + sc(M, d + i));
+  const rnd = (a) => a[Math.floor(Math.random() * a.length)];
+
+  // one note: an oscillator through an optional low-pass, with a soft envelope, a dry path and a delay send
+  function note(b, type, f, t, dur, vol, o = {}){
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(f, t);
+    if(o.detune) osc.detune.value = o.detune;
+    if(o.slide) osc.frequency.exponentialRampToValueAtTime(o.slide, t + (o.slideT || dur));
+    if(o.cut){ const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = o.cut; osc.connect(fl); fl.connect(g); }
+    else osc.connect(g);
+    const a = o.a || .005, r = o.r || .1;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + a);
+    if(o.pluck) g.gain.setTargetAtTime(0, t + a, o.pluck);
+    else { g.gain.setValueAtTime(vol, t + Math.max(a, dur - r)); g.gain.linearRampToValueAtTime(0, t + Math.max(a + .01, dur)); }
+    if(o.vib){ const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = o.vib; lg.gain.value = f * .007; l.connect(lg); lg.connect(osc.frequency); l.start(t); l.stop(t + dur + .05); }
+    g.connect(b.dry);
+    if(o.wet){ const s = ctx.createGain(); s.gain.value = o.wet; g.connect(s); s.connect(b.fx); }
+    osc.onended = () => g.disconnect();
+    osc.start(t); osc.stop(t + dur + .05);
+  }
+  function hit(b, t, vol, decay, hp, bp){
+    const s = ctx.createBufferSource(), g = ctx.createGain(), fl = ctx.createBiquadFilter();
+    s.buffer = noise; fl.type = bp ? 'bandpass' : 'highpass'; fl.frequency.value = hp;
+    s.connect(fl); fl.connect(g); g.connect(b.dry);
+    g.gain.setValueAtTime(vol, t); g.gain.setTargetAtTime(0, t, decay);
+    s.onended = () => g.disconnect(); s.start(t); s.stop(t + decay * 8);
+  }
+  const kick = (b, t, v = .55) => note(b, 'sine', 150, t, .35, v, {slide: 42, slideT: .12, pluck: .09});
+  const snare = (b, t) => { hit(b, t, .2, .07, 1800, true); note(b, 'triangle', 190, t, .15, .12, {pluck: .04}); };
+
+  // a short melody that repeats for a while, so it sounds like a tune and not random notes
+  function newPhrase(slots, len, stepsAvail, keep){
+    const p = {}; let i = Math.floor(len / 2);
+    for(const s of stepsAvail){ if(Math.random() < keep){ i = Math.max(0, Math.min(len - 1, i + rnd([-2, -1, -1, 1, 1, 2, 0]))); p[s] = i; } }
+    return p;
+  }
+
+  const MOODS = {
+    town: {bpm: 92, root: 62, scale: [0, 2, 4, 5, 7, 9, 11], prog: [0, 4, 5, 3], vol: 1.3, delay: .49, fb: .32, fxcut: 4200,
+      play(step, t, M, b){
+        const beat = 60 / M.bpm, bar = Math.floor(step / 16), s = step % 16, ch = chord(M, M.prog[bar % M.prog.length]);
+        if(s === 0){
+          ch.forEach((m, i) => note(b, 'triangle', hz(m), t, beat * 4.3, .028, {a: .7, r: .9, wet: .45, detune: i ? 5 : -5}));
+          note(b, 'sine', hz(ch[0] - 24), t, beat * 1.9, .16, {a: .03, r: .5});
+        }
+        if(s === 8) note(b, 'sine', hz(ch[2] - 24), t, beat * 1.9, .13, {a: .03, r: .5});
+        if(s % 2 === 0){ const pat = [0, 1, 2, 1, 0, 2, 1, 2]; note(b, 'triangle', hz(ch[pat[s / 2]] + 12), t, beat * 1.4, .026, {pluck: .2, wet: .5}); }
+        if(s % 4 === 2 && Math.random() < .25) hit(b, t, .025, .03, 6000);
+        // a flute-like tune on the first two bars of every four, answered by silence
+        if(step % 128 === 0 || !phrase) phrase = newPhrase(0, 10, [0, 4, 6, 8, 12, 16, 20, 22, 24, 28], .7);
+        const pent = [0, 2, 4, 7, 9], ps = step % 64;
+        if(ps < 32 && phrase[ps] !== undefined){ const k = phrase[ps], m = M.root + 12 + pent[k % 5] + 12 * Math.floor(k / 5) - 12;
+          note(b, 'sine', hz(m), t, beat * 1.6, .05, {a: .04, r: .4, vib: 5, wet: .55}); }
+      }},
+    dungeon: {bpm: 56, root: 57, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 5, 0, 1], vol: 1.5, delay: .8, fb: .45, fxcut: 1800,
+      play(step, t, M, b){
+        const beat = 60 / M.bpm, bar = Math.floor(step / 16), s = step % 16, ch = chord(M, M.prog[Math.floor(bar / 2) % M.prog.length]);
+        if(s === 0 && bar % 2 === 0){
+          note(b, 'sawtooth', hz(ch[0] - 24), t, beat * 8.6, .055, {a: 2.5, r: 2, cut: 260});
+          note(b, 'sawtooth', hz(ch[0] - 12), t, beat * 8.6, .03, {a: 3, r: 2, cut: 380, detune: 7});
+          ch.forEach(m => note(b, 'triangle', hz(m - 12), t, beat * 8.4, .02, {a: 2.5, r: 2, wet: .5}));
+        }
+        if(s === 0 || s === 3) kick(b, t, s ? .14 : .2);
+        if(s % 2 === 0 && Math.random() < .09){ const mp = [0, 3, 5, 7, 10]; note(b, 'sine', hz(M.root + 24 + rnd(mp)), t, 3, .03, {pluck: .3, wet: .8}); }
+        if(bar % 2 === 1 && (s === 0 || s === 8) && Math.random() < .5) note(b, 'triangle', hz(rnd(ch)), t, beat * 3, .04, {a: .4, r: 1, vib: 4, wet: .55});
+      }},
+    abyss: {bpm: 48, root: 52, scale: [0, 1, 3, 5, 6, 8, 10], prog: [0, 1, 0, 6], vol: 1.5, delay: 1.1, fb: .5, fxcut: 1200,
+      play(step, t, M, b){ MOODS.dungeon.play(step, t, M, b); if(step % 64 === 32) note(b, 'sawtooth', hz(M.root - 23), t, 6, .03, {a: 2, r: 3, cut: 200}); }},
+    champion: {bpm: 150, root: 52, scale: [0, 2, 3, 5, 7, 8, 11], prog: [0, 5, 3, 4], vol: .85, delay: .3, fb: .25, fxcut: 2600,
+      play(step, t, M, b){
+        const bar = Math.floor(step / 16), s = step % 16, ch = chord(M, M.prog[bar % M.prog.length]);
+        if(s % 4 === 0) kick(b, t);
+        if(s === 4 || s === 12) snare(b, t);
+        if(s % 2 === 0) hit(b, t, s % 4 ? .05 : .03, .02, 7000);
+        if(s === 0) ch.forEach(m => note(b, 'sawtooth', hz(m), t, .5, .025, {cut: 1600, r: .25}));
+        if(s % 2 === 0){ const off = [0, 0, 12, 0, 0, 7, 12, 10][s / 2]; note(b, 'square', hz(ch[0] - 24 + off), t, .17, .06, {cut: 850, r: .05}); }
+        const tones = [...ch, ch[0] + 12], pat = [0, 1, 2, 3, 2, 1, 2, 3, 0, 1, 2, 3, 2, 3, 1, 2];
+        if(bar % 4 !== 3 || s < 8) note(b, 'square', hz(tones[pat[s]] + 12), t, .12, .022, {cut: 2600, pluck: .05, wet: .25});
+      }}
+  };
+
+  function mkBus(M){
+    const g = ctx.createGain(); g.gain.value = 0; g.connect(master);
+    const dry = ctx.createGain(); dry.connect(g);
+    const fx = ctx.createGain(), d = ctx.createDelay(2), fb = ctx.createGain(), lp = ctx.createBiquadFilter();
+    d.delayTime.value = M.delay; fb.gain.value = M.fb; lp.type = 'lowpass'; lp.frequency.value = M.fxcut;
+    fx.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(g);
+    return {g, dry, fx};
+  }
+  function moodNow(){
+    if(!on || typeof S === 'undefined' || !S) return null;
+    const r = S.run; if(!r) return 'town';
+    if(r.phase === 'combat' && r.mon && r.mon.champion) return 'champion';
+    return r.abyss ? 'abyss' : 'dungeon';
+  }
+  function switchTo(w){
+    const now = ctx.currentTime, fast = w === 'champion' || cur === 'champion';
+    if(cur && bus[cur]){ bus[cur].g.gain.cancelScheduledValues(now); bus[cur].g.gain.setTargetAtTime(0, now, fast ? .12 : .6); }
+    cur = w; phrase = null; step = 0;
+    if(!w) return;
+    // a fresh bus each time, so leftover echoes from last time don't bleed in
+    bus[w] = mkBus(MOODS[w]);
+    bus[w].g.gain.setTargetAtTime(MOODS[w].vol, now, fast ? .08 : .9);
+    nextT = now + .08;
+  }
+  function tick(){
+    if(!ctx || ctx.state !== 'running') return;
+    const w = moodNow(); if(w !== cur) switchTo(w);
+    if(!cur) return;
+    const M = MOODS[cur], sd = 60 / M.bpm / 4;
+    if(nextT < ctx.currentTime) nextT = ctx.currentTime + .05; // skip ahead after a stall instead of a burst of notes
+    while(nextT < ctx.currentTime + .25){ M.play(step, nextT, M, bus[cur]); step++; nextT += sd; }
+  }
+  function start(){
+    try{
+      if(!ctx){
+        const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+        ctx = new AC();
+        const comp = ctx.createDynamicsCompressor(); comp.connect(ctx.destination);
+        master = ctx.createGain(); master.gain.value = .5; master.connect(comp);
+        noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+        const ch = noise.getChannelData(0); for(let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+      }
+      if(ctx.state === 'suspended' && !document.hidden) ctx.resume();
+      if(!timer) timer = setInterval(tick, 50);
+    }catch(e){}
+  }
+  ['pointerdown', 'keydown', 'touchend'].forEach(ev => document.addEventListener(ev, start, {passive: true}));
+  document.addEventListener('visibilitychange', () => { if(!ctx) return; if(document.hidden) ctx.suspend(); else ctx.resume(); });
+  return {
+    get on(){ return on; },
+    get mood(){ return cur; },
+    // renders a few seconds of one mood offline (used to make listening previews)
+    async preview(mood, secs){
+      const saved = [ctx, master, noise], off = new OfflineAudioContext(2, 44100 * secs, 44100);
+      ctx = off; master = off.createGain(); master.gain.value = .5; const comp = off.createDynamicsCompressor(); master.connect(comp); comp.connect(off.destination);
+      noise = off.createBuffer(1, 44100, 44100); const nc = noise.getChannelData(0); for(let i = 0; i < nc.length; i++) nc[i] = Math.random() * 2 - 1;
+      const M = MOODS[mood], b = mkBus(M); b.g.gain.value = M.vol; phrase = null;
+      for(let st = 0, t = .05; t < secs - 1; st++, t += 60 / M.bpm / 4) M.play(st, t, M, b);
+      [ctx, master, noise] = saved; phrase = null;
+      return off.startRendering();
+    },
+    toggle(){ on = !on; try{ localStorage.setItem('affix-deep-music', on ? 'on' : 'off'); }catch(e){} start(); tick(); return on; }
+  };
+})();
+function syncMusicBtn(){ const b = $('#musBtn'); if(!b) return; b.classList.toggle('off', !Music.on); b.setAttribute('aria-pressed', Music.on ? 'true' : 'false'); b.setAttribute('aria-label', Music.on ? 'Music on' : 'Music off'); }
 
 /* ============ boot ============ */
 const hadOldSave = (() => { try{ return !localStorage.getItem(SAVE_KEY) && !!localStorage.getItem('affix-deep-v1'); }catch(e){ return false; } })();
