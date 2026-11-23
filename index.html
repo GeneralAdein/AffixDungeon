@@ -731,6 +731,23 @@ svg[shape-rendering]{display:block}
 
 
 
+
+/* ===== The smith's anvil ===== */
+.where{display:flex;flex-direction:column;gap:2px;padding:8px 10px;margin-bottom:8px;border:2px solid var(--frame);background:var(--panel)}
+.where b{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:18px}
+.where.worn{border-color:var(--torch)}.where.worn b{color:var(--torch)}
+.where.bag b{color:var(--xp)}
+.where span{font-size:18px;line-height:1.15;color:var(--muted)}
+.rfparts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.rfpart{display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--panel);border:2px solid var(--frame)}
+.rfpart p{font-size:18px;line-height:1.15}
+.rfpart b{font-weight:400}
+.rfpart .btn{margin-top:auto;font-size:17px;line-height:1.05;padding:6px}
+.rfhead{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:17px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.rfresult{margin:0 0 8px;border-color:var(--rare)}
+.rfresult b{font-weight:400}
+.rfgroup{margin:10px 0 4px;font-size:19px}
+.rfgroup b{font-family:'Pixelify Sans','VT323',monospace;font-weight:600}
 /* ===== Tutorial tips ===== */
 .tip{position:fixed;inset:0;z-index:65;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(6,5,9,.45)}
 .tipbox{width:100%;max-width:460px;background:#16151e;border:3px solid #f2c444;box-shadow:0 0 0 3px #16151e,0 0 0 5px #5a5446;padding:12px 14px;margin-bottom:8px;color:#ebe2cc}
@@ -2073,8 +2090,8 @@ function buildingView(b){
   if(b==='smithy'){
     const worn = SLOTS.map(sl => S.hero.equip[sl]).filter(Boolean), gear = S.hero.bag.filter(isGear);
     extra = `<h3 class="section-h">Reforge</h3><p class="sub" style="margin-bottom:6px">Tap a piece of gear to reroll its prefix or suffix. The new roll can be better or worse.</p>
-      ${worn.length ? `<p class="sub" style="margin:8px 0 4px">What you’re wearing</p><div class="rows">${worn.map(it => itemRow(it, 'smithy')).join('')}</div>` : ''}
-      ${gear.length ? `<p class="sub" style="margin:8px 0 4px">In your bag</p><div class="rows">${gear.map(it => itemRow(it, 'smithy')).join('')}</div>` : ''}
+      ${worn.length ? `<p class="rfgroup"><b>Equipped</b> <span class="sub">reforging changes your stats right away</span></p><div class="rows">${worn.map(it => itemRow(it, 'smithy')).join('')}</div>` : ''}
+      ${gear.length ? `<p class="rfgroup"><b>In your bag</b> <span class="sub">reforging changes only the item</span></p><div class="rows">${gear.map(it => itemRow(it, 'smithy')).join('')}</div>` : ''}
       ${!worn.length && !gear.length ? '<p class="empty-note">You have no gear to reforge.</p>' : ''}`;
   }
   if(b==='cartographer'){
@@ -2115,13 +2132,53 @@ function reforge(id, which){
   const pool = Object.values(which==='pre' ? IPRE : ISUF).filter(a => a.min <= it.ilvl && fits(a, it.base));
   if(!pool.length) return toast('Nothing to reforge into.');
   S.hero.gold -= c;
-  const old = it[which];
+  const old = it[which], hBefore = heroStats(), iBefore = itemStats(it);
   it[which] = weighted(pool).id;
   it.rarity = it.pre && it.suf ? 'rare' : (it.pre || it.suf) ? 'magic' : 'normal';
-  { const A = which==='pre' ? IPRE : ISUF; toast(old ? `${A[old].name} became ${A[it[which]].name}.` : `It gained ${A[it[which]].name}.`); }
-  save(); render(); openSheet(itemSheet(it, 'smithy'), 'item');
+  lastReforge = {uid:it.uid, which, old, neu:it[which], hBefore, iBefore, worn:!!wornSlot(it)};
+  save(); render(); openSheet(smithSheet(it), 'item');
 }
 
+/* The smith's anvil: makes clear whether you're reforging something you're wearing (your stats change
+   right away) or something in your bag (only the item changes), and what each button rerolls. */
+let lastReforge = null;
+function wornSlot(it){ return SLOTS.find(sl => S.hero.equip[sl] === it) || null; }
+function reforgePool(it, which){ return Object.values(which==='pre' ? IPRE : ISUF).filter(a => a.min <= it.ilvl && fits(a, it.base)); }
+function statChanges(a, b, rows){
+  const out = [];
+  for(const [k,l] of rows){ const x = a[k] || 0, y = b[k] || 0; if(Math.round(x*10) !== Math.round(y*10)) out.push(`<li class="${y>x?'up':'down'}">${l} ${+x.toFixed(1)}→${+y.toFixed(1)}</li>`); }
+  return out;
+}
+const ITEM_ROWS = [['atk','Damage'],['def','Armor'],['block','Block'],['spd','Speed'],['crit','Critical'],['dodge','Dodge'],['spell','Spell power'],['maxhp','Max health'],['gold','Gold found'],['regen','Regen'],['lifesteal','Life steal'],['thorns','Reflect']];
+function smithSheet(it){
+  const h = S.hero, kind = IBASE[it.base].kind, slot = wornSlot(it), c = reforgeCost(it), poor = h.gold < c;
+  const where = slot
+    ? `<div class="where worn"><b>Equipped</b><span>You’re wearing this. Reforging it changes your stats right away.</span></div>`
+    : `<div class="where bag"><b>In your bag</b><span>Reforging changes only this item. Your stats stay the same unless you equip it.</span></div>`;
+  const cards = slot ? `<div class="cmpgrid one">${itemCard(it, 'On the anvil · equipped')}</div>`
+    : `<div class="cmpgrid">${itemCard(it, 'On the anvil · in your bag')}${itemCard(h.equip[kind], 'Equipped')}</div>${swapDelta(it)}`;
+  const part = which => {
+    const A = which==='pre' ? IPRE : ISUF, cur = it[which] ? A[it[which]] : null, other = which==='pre' ? (it.suf ? ISUF[it.suf].name : null) : (it.pre ? IPRE[it.pre].name : null);
+    const pool = reforgePool(it, which), bad = pool.filter(a => a.neg).length, label = which==='pre' ? 'prefix' : 'suffix';
+    const now = cur ? `<b class="${cur.neg?'down':'up'}">${cur.name}</b>: ${itemAffixLines(cur, it).map(l => `<span class="${l.good?'up':'down'}">${l.t}</span>`).join(', ')}` : `<span class="sub">No ${label} yet.</span>`;
+    const does = cur ? `Replaces ${cur.name} with a random ${label}.` : `Adds a random ${label}.`;
+    return `<div class="rfpart"><div class="rfhead">${cap(label)}</div><p>${now}</p>
+      <p class="sub">${does}${other ? ` ${other} stays.` : ''} ${pool.length} possible ${label}es${bad ? `, ${bad} of them bad` : ''}.</p>
+      <button class="btn primary" data-act="reforge" data-arg="${it.uid}|${which}" ${poor||!pool.length?'disabled':''}>Reforge ${label} ${priceTag(c)}</button></div>`;
+  };
+  let result = '';
+  const L = lastReforge;
+  if(L && L.uid === it.uid){
+    const A = L.which==='pre' ? IPRE : ISUF;
+    const head = L.old ? `${A[L.old].name} became <b class="${A[L.neu].neg?'down':'up'}">${A[L.neu].name}</b>.` : `It gained <b class="${A[L.neu].neg?'down':'up'}">${A[L.neu].name}</b>.`;
+    const lines = L.worn ? statChanges(L.hBefore, heroStats(), STAT_ROWS) : statChanges(L.iBefore, itemStats(it), ITEM_ROWS);
+    result = `<div class="delta rfresult"><h4>Last reforge: ${head}</h4><p class="sub">${L.worn ? 'Your stats' : 'This item'}:</p>${lines.length ? `<ul>${lines.join('')}</ul>` : '<p class="sub">No change.</p>'}</div>`;
+  }
+  return `<div class="grab"></div>${where}${result}${cards}
+    <div class="rfparts">${part('pre')}${part('suf')}</div>
+    ${poor ? `<p class="sub down" style="margin-top:6px">You need ${c} gold to reforge this.</p>` : ''}
+    <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
+}
 /* Old Guild Hall upgrades are simply retired. */
 function migrateTown(){ S.town = {}; S.townMigrated = true; return 0; }
 
@@ -2704,6 +2761,7 @@ function swapDelta(it){
   return `<div class="delta"><h4>If you equip this</h4>${lines.length?`<ul>${lines.join('')}</ul>`:'<p class="sub">No change to your stats.</p>'}${notes.map(n=>`<p class="sub">${n}</p>`).join('')}</div>`;
 }
 function itemSheet(it, ctx){
+  if(ctx==='smithy' && isGear(it)) return smithSheet(it);
   const b = IBASE[it.base], h = S.hero;
   const inCombat = !!(S.run && S.run.phase==='combat');
   const full = h.bag.length >= bagMax();
