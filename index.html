@@ -730,6 +730,17 @@ svg[shape-rendering]{display:block}
 .vn.narr .vntext{font-style:italic;color:#c9bfa6;text-align:center;padding:10px 4px}
 
 
+
+/* ===== Tutorial tips ===== */
+.tip{position:fixed;inset:0;z-index:65;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(6,5,9,.45)}
+.tipbox{width:100%;max-width:460px;background:#16151e;border:3px solid #f2c444;box-shadow:0 0 0 3px #16151e,0 0 0 5px #5a5446;padding:12px 14px;margin-bottom:8px;color:#ebe2cc}
+.tipk{font-size:15px;letter-spacing:3px;text-transform:uppercase;color:#f2c444}
+.tipbox h3{font-size:22px;margin:2px 0 6px;color:#ebe2cc}
+.tipbox p{font-size:20px;line-height:1.2;color:#c9bfa6}
+.tipbox p b{font-weight:400;color:#ebe2cc}
+.tipbtns{display:flex;align-items:center;gap:12px;margin-top:12px}
+.tipbtns .btn{flex:1}
+.tipbtns .linkbtn{color:#8a8270}
 /* ===== Potion and scroll quick buttons ===== */
 .quick{grid-template-columns:1fr 1fr}
 #quick .qs.qpack{font-size:19px;gap:6px;flex-direction:row;justify-content:center}
@@ -1898,7 +1909,7 @@ const BUILDINGS = {
   cartographer:{name:'Cartographer', x:4, y:2, desc:'Maps of the deep, for those who’ve been there.'}
 };
 const ROADS = ['gate|guild','guild|shop','guild|tavern','shop|yard','tavern|temple','guild|square','square|smithy','square|apothecary','yard|bank','temple|cartographer','shop|smithy','tavern|apothecary'];
-const QUEST_GIVERS = ['yard','temple','apothecary','smithy','bank','cartographer'];
+const QUEST_GIVERS = ['shop','yard','temple','apothecary','smithy','bank','cartographer'];
 
 /* ---------- crafting materials: dropped by monster families, kept in a pouch, used for quests ---------- */
 const MATS = {
@@ -1925,6 +1936,7 @@ function genQuest(b, diff){
     case 'temple': q = Math.random() < .5 ? killBase(x => x.fam==='undead', n(10,40,250)) : killFam(['undead'], 'undead', n(15,60,200)); break;
     case 'apothecary': q = gather(['silk','venom','spore','tail','stinger'], n(5,15,40)); break;
     case 'smithy': q = diff==='hard' ? gather(['scale','core'], 8) : gather(['chitin','insignia','tusk','pelt'], n(6,18,0)); break;
+    case 'shop': q = diff==='hard' ? gather(['scale','sigil','core'], 6) : Math.random() < .5 ? gather(['pelt','silk','tail','ear'], n(4,12,0)) : {kind:'gold', need:n(400,1800,0), label:`Come back from one run with ${n(400,1800,0)} gold earned`}; break;
     case 'bank': q = {kind:'gold', need:n(600,2500,8000), label:`Come back from one run with ${n(600,2500,8000)} gold earned`}; break;
     case 'cartographer': q = Math.random() < .5 ? {kind:'depth', need:n(4,8,12), label:`Reach floor ${n(4,8,12)} and make it back alive`} : {kind:'rooms', need:n(40,150,400), label:`Explore ${n(40,150,400)} rooms`}; break;
   }
@@ -2059,21 +2071,24 @@ function buildingView(b){
     extra = `<h3 class="section-h">Remedies</h3><div class="rows">${wares.map(it => `<div class="row r-${it.rarity}"><span class="ico">${ICON[IBASE[it.base].icon]}</span><span style="flex:1"><span class="nm">${itemNameHtml(it)}</span><br><span class="sub">${itemShort(it)}</span></span><button class="btn sm" data-act="buyRemedy" data-arg="${it.base}|${it.ilvl}|${it.pre||''}|${it.suf||''}" ${S.hero.gold<itemValue(it)?'disabled':''}>${priceTag(itemValue(it))}</button></div>`).join('')}</div>`;
   }
   if(b==='smithy'){
-    const gear = S.hero.bag.filter(isGear);
-    extra = `<h3 class="section-h">Reforge</h3><p class="sub" style="margin-bottom:6px">Pay to reroll one prefix or suffix on gear in your bag. The new roll can be better or worse.</p>
-      <div class="rows">${gear.length ? gear.map(it => itemRow(it, 'smithy')).join('') : '<p class="empty-note">No gear in your bag to reforge.</p>'}</div>`;
+    const worn = SLOTS.map(sl => S.hero.equip[sl]).filter(Boolean), gear = S.hero.bag.filter(isGear);
+    extra = `<h3 class="section-h">Reforge</h3><p class="sub" style="margin-bottom:6px">Tap a piece of gear to reroll its prefix or suffix. The new roll can be better or worse.</p>
+      ${worn.length ? `<p class="sub" style="margin:8px 0 4px">What you’re wearing</p><div class="rows">${worn.map(it => itemRow(it, 'smithy')).join('')}</div>` : ''}
+      ${gear.length ? `<p class="sub" style="margin:8px 0 4px">In your bag</p><div class="rows">${gear.map(it => itemRow(it, 'smithy')).join('')}</div>` : ''}
+      ${!worn.length && !gear.length ? '<p class="empty-note">You have no gear to reforge.</p>' : ''}`;
   }
   if(b==='cartographer'){
     extra = `<p class="sub" style="margin-top:8px">“Every map I sell was walked by someone. Most of them came back.”</p>`;
   }
-  const npc = QUEST_NPC[b];
-  const quests = npc ? `<h3 class="section-h">${TOWNFOLK[b].name.split(' ').slice(-1)[0]}’s work</h3>
-    <p class="sub" style="margin:0 0 6px">${(() => { const cur = activeQuests()[0]; return cur && cur.b !== b ? `You’re already on a quest for ${TOWNFOLK[cur.b].name}: ${cur.label}. One quest at a time.` : 'One quest at a time. Progress only counts if you make it back to town alive, and quest materials only drop while you’re on the quest that needs them.'; })()}</p>
-    <div class="rows">${board(b).map(questRow).join('')}</div>` : '';
   return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
     <h1 class="bname">${B.name}</h1>${keeperHtml(b, QUEST_GIVERS.includes(b) ? `reputation ${rep}` : '')}
     ${perks.length ? `<h3 class="section-h">Upgrades <small class="sub">Permanent</small></h3><div class="rows">${perks.map(perkRow).join('')}</div>` : ''}
-    ${extra}${quests}</div>`;
+    ${extra}${questsHtml(b)}</div>`;
+}
+function questsHtml(b){
+  return QUEST_GIVERS.includes(b) ? `<h3 class="section-h">${TOWNFOLK[b].name.split(' ').slice(-1)[0]}’s work</h3>
+    <p class="sub" style="margin:0 0 6px">${(() => { const cur = activeQuests()[0]; return cur && cur.b !== b ? `You’re already on a quest for ${TOWNFOLK[cur.b].name}: ${cur.label}. One quest at a time.` : 'One quest at a time. Progress only counts if you make it back to town alive, and quest materials only drop while you’re on the quest that needs them.'; })()}</p>
+    <div class="rows">${board(b).map(questRow).join('')}</div>` : '';
 }
 function guildView(){
   const s = stats(), h = S.hero, kills = Object.entries(s.kills).sort((a,b) => b[1]-a[1]);
@@ -2088,22 +2103,22 @@ function guildView(){
     ${mats.length ? `<p class="statline">${mats.map(([m,c]) => `<span>${MATS[m].name} <b>${c}</b></span>`).join('')}</p>` : '<p class="empty-note">Monsters drop materials for quests. Bring them home to keep them.</p>'}
     <h3 class="section-h">Bestiary <small class="sub">${kills.length} of ${Object.keys(MONSTERS).length} species</small></h3>
     <button class="bestbtn" data-act="bestiary"><span class="bimgs">${kills.slice(0,5).map(([k]) => `<img src="${ART[k]}" alt="">`).join('') || '<img src="'+ART.rat+'" alt="" class="sil">'}</span><span><b>Open the Bestiary</b><br><span class="sub">Every species you’ve slain, its lore and abilities, and your mastery over it.</span></span></button>
-    <div class="foot"><button class="linkbtn" data-act="resetAsk">Start a new character</button></div>
+    <div class="foot"><button class="linkbtn" data-act="tipsAgain">Show the tutorial tips again</button><button class="linkbtn" data-act="resetAsk">Start a new character</button></div>
   </div>`;
 }
 
 /* ---------- reforging ---------- */
 function reforgeCost(it){ return Math.max(150, Math.round(itemValue(it)*3/10)*10); }
 function reforge(id, which){
-  const f = findIn(S.hero.bag, id); if(!f) return;
-  const it = f.it, c = reforgeCost(it); if(S.hero.gold < c) return;
+  const it = findItem(id); if(!it || !isGear(it)) return;
+  const c = reforgeCost(it); if(S.hero.gold < c) return;
   const pool = Object.values(which==='pre' ? IPRE : ISUF).filter(a => a.min <= it.ilvl && fits(a, it.base));
   if(!pool.length) return toast('Nothing to reforge into.');
   S.hero.gold -= c;
   const old = it[which];
   it[which] = weighted(pool).id;
   it.rarity = it.pre && it.suf ? 'rare' : (it.pre || it.suf) ? 'magic' : 'normal';
-  toast(`${old ? (which==='pre'?IPRE:ISUF)[old].name : 'Nothing'} became ${(which==='pre'?IPRE:ISUF)[it[which]].name}.`);
+  { const A = which==='pre' ? IPRE : ISUF; toast(old ? `${A[old].name} became ${A[it[which]].name}.` : `It gained ${A[it[which]].name}.`); }
   save(); render(); openSheet(itemSheet(it, 'smithy'), 'item');
 }
 
@@ -2386,7 +2401,8 @@ function shopView(){
       <h3 class="section-h">Always in stock</h3><div class="rows">${staples}</div>
       <h3 class="section-h">Today’s wares</h3><p class="sub" style="margin-bottom:6px">Tap an item to compare it with what you’re wearing.</p><div class="rows">${wares}</div>
       <div class="stack"><button class="btn" data-act="restock" ${h.gold<15?'disabled':''}>Restock wares for ${priceTag(15)}</button></div>
-      ${full?'<p class="empty-note">Your bag is full. Sell something first.</p>':''}`;
+      ${full?'<p class="empty-note">Your bag is full. Sell something first.</p>':''}
+      ${questsHtml('shop')}`;
   } else {
     const gear = h.bag.filter(isGear), total = gear.reduce((a,it)=>a+sellPrice(it),0);
     body = h.bag.length ? `${gear.length?`<div class="stack" style="margin-top:0;margin-bottom:10px"><button class="btn primary" data-act="sellGear">Sell all ${gear.length} gear for ${priceTag(total)}</button></div>`:''}
@@ -2394,7 +2410,7 @@ function shopView(){
       <p class="sub" style="margin-top:8px">Selling gear keeps your potions and scrolls.</p>` : `<p class="empty-note">Your bag is empty. Pick up loot in the dungeon and sell it here.</p>`;
   }
   return `<div class="town"><button class="back" data-act="go" data-arg="town">${ICON.back} Emberhold</button>
-    <h1 class="bname">Shop</h1>${keeperHtml('shop')}
+    <h1 class="bname">Shop</h1>${keeperHtml('shop', `reputation ${(S.rep||{}).shop || 0}`)}
     <div class="seg"><button class="${shopTab==='buy'?'on':''}" data-act="shopTab" data-arg="buy">Buy</button><button class="${shopTab==='sell'?'on':''}" data-act="shopTab" data-arg="sell">Sell (${h.bag.length})</button></div>
     ${body}</div>`;
 }
@@ -2408,7 +2424,7 @@ function tavernView(){
     <h1 class="bname">Tavern</h1>${keeperHtml('tavern')}<p class="lead" style="margin-top:8px">${hurt ? `You have ${h.hp} of ${hs.maxhp} health.` : 'You’re fully rested.'}</p>
     <div class="stack">
       <button class="btn primary" data-act="rest" ${!hurt||h.gold<c?'disabled':''}>Rent a room and heal fully for ${priceTag(c)}</button>
-      <button class="btn" data-act="restFree" ${!hurt?'disabled':''}>Sleep in the stable for free (heals half)</button>
+      <button class="btn" data-act="restFree" ${!hurt||S.stabled?'disabled':''}>${S.stabled ? 'You’ve already slept in the stable this visit' : 'Sleep in the stable for free (heals half, once per visit)'}</button>
     </div>
     ${S.wallFound ? `<button class="cellarbtn" data-act="go" data-arg="cellar"><span class="trap"></span><span><b>Go down to the cellar</b><br><span class="sub">${stonesPlaced()} of ${STONES.length} stones set in the Old Wall</span></span></button>` : ''}
     <h3 class="section-h">Your stash (${S.stash.length})</h3><div class="rows">${stash}</div>
@@ -3382,6 +3398,7 @@ function enterDungeon(abyss, way){
   // a Waystone sets you down on the floor just past it, since you've already beaten that one
   const start = way ? way + 1 : 1;
   if(way){ const t = wayToll(way, abyss); if(!waystones(abyss).includes(way) || S.hero.gold < t) return; S.hero.gold -= t; }
+  S.stabled = false;   // the stable is free once per visit to town
   S.run = {depth:start, mon:null, pg:0, mg:0, log:[], pb:{}, mb:{}, phase:'explore', loot:[], kills:0, abyss};
   rollRunAffixes(S.run);
   newFloor(start);
@@ -3848,7 +3865,7 @@ const ACT = {
   trade: () => { const o = merchantRoom(); if(o) openSheet(merchantSheet(o), 'merchant'); },
   floorInfo: () => openSheet(floorInfoSheet()),
   mbuy: a => { const o = merchantRoom(); if(!o) return; const f = findIn(o.items, a); if(!f) return; const p = merchantPrice(f.it); if(S.hero.gold < p || !roomFor(f.it)) return; S.hero.gold -= p; o.items.splice(f.i,1); addToBag(f.it); toast(`Bought ${itemName(f.it)}.`); save(); updateHud(); openSheet(merchantSheet(o),'merchant'); },
-  toTown: () => { const notes = bankRun(); stats().returns++; goTown(notes.length ? `Home safe. ${notes.slice(0,3).join('. ')}.` : 'You return to Emberhold. Sell your loot at the shop.'); },
+  toTown: () => { const notes = bankRun(); stats().returns++; if(!(S.tips||{}).home) S.tipHome = true; goTown(notes.length ? `Home safe. ${notes.slice(0,3).join('. ')}.` : 'You return to Emberhold. Sell your loot at the shop.'); },
   deadToTown: () => { S.hero.hp = Math.round(heroStats().maxhp*.5); goTown(); },
   shopTab: a => { shopTab = a; render(); },
   buy: a => { const f = findIn(S.shop.items, a); if(!f) return; const p = itemValue(f.it); if(S.hero.gold < p || !roomFor(f.it)) return; S.hero.gold -= p; S.shop.items.splice(f.i,1); addToBag(f.it); closeSheet(); toast(`Bought ${itemName(f.it)}.`); save(); render(); },
@@ -3857,7 +3874,7 @@ const ACT = {
   sellGear: () => { const gear = S.hero.bag.filter(isGear); const p = gear.reduce((a,it)=>a+sellPrice(it),0); S.hero.bag = S.hero.bag.filter(it => !isGear(it)); S.hero.gold += p; toast(`Sold ${gear.length} item${gear.length===1?'':'s'} for ${p} gold.`); save(); render(); },
   restock: () => { if(S.hero.gold < 15) return; S.hero.gold -= 15; S.shop = genShop(); save(); render(); },
   rest: () => { const c = restCost(); if(S.hero.gold < c) return; S.hero.gold -= c; S.hero.hp = heroStats().maxhp; toast('You sleep soundly. Health fully restored.'); save(); render(); },
-  restFree: () => { const mx = heroStats().maxhp; S.hero.hp += Math.ceil((mx - S.hero.hp)/2); toast('The straw is itchy, but you feel better.'); save(); render(); },
+  restFree: () => { if(S.stabled) return; S.stabled = true; const mx = heroStats().maxhp; S.hero.hp += Math.ceil((mx - S.hero.hp)/2); toast('The straw is itchy, but you feel better.'); save(); render(); },
   store: a => { const f = findIn(S.hero.bag, a); if(!f) return; S.hero.bag.splice(f.i,1); S.stash.push(f.it); closeSheet(); save(); render(); },
   retrieve: a => { const f = findIn(S.stash, a); if(!f || !roomFor(f.it)) return; S.stash.splice(f.i,1); addToBag(f.it); closeSheet(); save(); render(); },
   resetAsk: () => openSheet(`<div class="grab"></div><h3 class="sheet-title">Start a new character?</h3><p class="lead" style="margin-top:8px">This erases your level, gold, gear and stash.</p><div class="sheet-actions"><button class="btn" data-act="closeSheet">Keep playing</button><button class="btn primary" data-act="reset">Start over</button></div>`),
@@ -3925,6 +3942,7 @@ const ACT = {
   reforge: a => { const [id,w] = a.split('|'); reforge(id, w); },
   townGo: a => townGo(a),
   rumor: () => toast(pick(RUMORS)),
+  tipsAgain: () => { S.tips = {}; S.tipsOff = false; save(); toast('Tips will show again as you play.'); },
   music: () => { Music.toggle(); syncMusicBtn(); },
   reset: () => { closeSheet(); newGame(); save(); render(); storyIntro(); }
 };
@@ -3943,6 +3961,8 @@ document.addEventListener('keydown', e => {
    (fast and dark). Browsers only allow sound after a tap, so it starts on your first one. */
 const Music = (() => {
   let ctx = null, master = null, noise = null, timer = null, cur = null, step = 0, nextT = 0, phrase = null, on = true;
+  let fightUid = null, fightN = Math.floor(Math.random() * 4);
+  const FIGHTS = ['fight1', 'fight2', 'fight3', 'fight4'];
   const bus = {}, INSIDE = ['shop', 'tavern', 'guild', 'cellar', 'yard', 'temple', 'smithy', 'apothecary', 'bank', 'cartographer'];
   try{ on = localStorage.getItem('affix-deep-music') !== 'off'; }catch(e){}
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -3963,7 +3983,7 @@ const Music = (() => {
     if(o.pluck) g.gain.setTargetAtTime(0, t + a, o.pluck);
     else { g.gain.setValueAtTime(vol, t + Math.max(a, dur - r)); g.gain.linearRampToValueAtTime(0, t + Math.max(a + .01, dur)); }
     if(o.vib){ const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = o.vib; lg.gain.value = f * .007; l.connect(lg); lg.connect(osc.frequency); l.start(t); l.stop(t + dur + .05); }
-    g.connect(b.dry);
+    g.connect(o.drive && b.drv ? b.drv : b.dry);
     if(o.wet){ const s = ctx.createGain(); s.gain.value = o.wet; g.connect(s); s.connect(b.fx); }
     osc.onended = () => g.disconnect();
     osc.start(t); osc.stop(t + dur + .05);
@@ -3978,6 +3998,8 @@ const Music = (() => {
     g.gain.setTargetAtTime(0, t + att, decay);
     s.onended = () => g.disconnect(); s.start(t); s.stop(t + att + decay * 8);
   }
+  // a power chord through the distortion: root, fifth and octave
+  const power = (b, m, t, dur, vol) => [0, 7, 12].forEach((i, k) => note(b, 'sawtooth', hz(m + i), t, dur, vol * (k ? .7 : 1), {drive: true, r: .05, detune: k * 4 - 4}));
   const kick = (b, t, v = .55) => note(b, 'sine', 150, t, .35, v, {slide: 42, slideT: .12, pluck: .09});
   const snare = (b, t) => { hit(b, t, .2, .07, 1800, true); note(b, 'triangle', 190, t, .15, .12, {pluck: .04}); };
   // a bell: a few sine partials at bell-like ratios, ringing out
@@ -4014,30 +4036,84 @@ const Music = (() => {
         if(ps < 32 && phrase[ps] !== undefined){ const k = phrase[ps], m = M.root + 12 + pent[k % 5] + 12 * Math.floor(k / 5) - 12;
           note(b, 'sine', hz(m), t, beat * 1.6, .05, {a: .04, r: .4, vib: 5, wet: .55}); }
       }},
-    dungeon: {bpm: 56, root: 57, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 5, 0, 1], vol: 1.5, delay: .8, fb: .45, fxcut: 1800,
+    dungeon: {bpm: 62, root: 45, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 0, 1, 0, 5, 5, 1, 6], vol: 1.05, delay: .7, fb: .4, fxcut: 1400, drive: 14, drvcut: 1500,  // grungy: a slow, distorted sludge riff
       play(step, t, M, b){
-        const beat = 60 / M.bpm, bar = Math.floor(step / 16), s = step % 16, ch = chord(M, M.prog[Math.floor(bar / 2) % M.prog.length]);
-        if(s === 0 && bar % 2 === 0){
-          note(b, 'sawtooth', hz(ch[0] - 24), t, beat * 8.6, .055, {a: 2.5, r: 2, cut: 260});
-          note(b, 'sawtooth', hz(ch[0] - 12), t, beat * 8.6, .03, {a: 3, r: 2, cut: 380, detune: 7});
-          ch.forEach(m => note(b, 'triangle', hz(m - 12), t, beat * 8.4, .02, {a: 2.5, r: 2, wet: .5}));
-        }
-        if(s === 0 || s === 3) kick(b, t, s ? .14 : .2);
-        if(s % 2 === 0 && Math.random() < .09){ const mp = [0, 3, 5, 7, 10]; note(b, 'sine', hz(M.root + 24 + rnd(mp)), t, 3, .03, {pluck: .3, wet: .8}); }
-        if(bar % 2 === 1 && (s === 0 || s === 8) && Math.random() < .5) note(b, 'triangle', hz(rnd(ch)), t, beat * 3, .04, {a: .4, r: 1, vib: 4, wet: .55});
+        const beat = 60 / M.bpm, bar = step >> 4, s = step % 16, root = M.root + sc(M, M.prog[bar % M.prog.length]);
+        // the riff: a heavy power chord, a held chug, and a slide down at the end of every other bar
+        if(s === 0) power(b, root - 12, t, beat * 1.4, .05);
+        if(s === 6) power(b, root - 12, t, beat * .45, .04);
+        if(s === 8) power(b, root - 12 + (bar % 4 === 3 ? 1 : 0), t, beat * 1.7, .045);
+        if(s === 14 && bar % 2 === 1) note(b, 'sawtooth', hz(root - 12), t, beat * .6, .05, {drive: true, slide: hz(root - 13), slideT: beat * .5});
+        // a low drone under it all
+        if(s === 0 && bar % 4 === 0) note(b, 'sawtooth', hz(M.root - 24), t, beat * 16.5, .045, {a: 3, r: 3, cut: 220});
+        // half-time drums: slow and heavy
+        if(s === 0 || s === 10) kick(b, t, .45);
+        if(s === 8) { snare(b, t); hit(b, t, .05, .25, 1200, true, {wet: .6}); }
+        if(s % 4 === 2) hit(b, t, .025, .04, 7000);
+        // feedback and far-off ringing
+        if(s === 4 && Math.random() < .25) note(b, 'sawtooth', hz(root + 6), t, beat * 2.5, .015, {drive: true, a: .6, r: 1, vib: 6});
+        if(s % 2 === 0 && Math.random() < .05) bell(b, hz(M.root + 24 + rnd([0, 1, 6, 7])), t, .02, .5, .8);
       }},
-    abyss: {bpm: 48, root: 52, scale: [0, 1, 3, 5, 6, 8, 10], prog: [0, 1, 0, 6], vol: 1.5, delay: 1.1, fb: .5, fxcut: 1200,
+    abyss: {bpm: 54, root: 40, scale: [0, 1, 3, 5, 6, 8, 10], prog: [0, 0, 1, 0, 4, 4, 1, 6], vol: .9, delay: 1.1, fb: .5, fxcut: 1000, drive: 20, drvcut: 1200,
       play(step, t, M, b){ MOODS.dungeon.play(step, t, M, b); if(step % 64 === 32) note(b, 'sawtooth', hz(M.root - 23), t, 6, .03, {a: 2, r: 3, cut: 200}); }},
-    champion: {bpm: 150, root: 52, scale: [0, 2, 3, 5, 7, 8, 11], prog: [0, 5, 3, 4], vol: .85, delay: .3, fb: .25, fxcut: 2600,
+    champion: {bpm: 156, root: 52, scale: [0, 2, 3, 5, 7, 8, 11], prog: [0, 5, 3, 4], vol: .95, delay: .3, fb: .25, fxcut: 2600, drive: 14, drvcut: 2000,
       play(step, t, M, b){
         const bar = Math.floor(step / 16), s = step % 16, ch = chord(M, M.prog[bar % M.prog.length]);
         if(s % 4 === 0) kick(b, t);
         if(s === 4 || s === 12) snare(b, t);
         if(s % 2 === 0) hit(b, t, s % 4 ? .05 : .03, .02, 7000);
         if(s === 0) ch.forEach(m => note(b, 'sawtooth', hz(m), t, .5, .025, {cut: 1600, r: .25}));
-        if(s % 2 === 0){ const off = [0, 0, 12, 0, 0, 7, 12, 10][s / 2]; note(b, 'square', hz(ch[0] - 24 + off), t, .17, .06, {cut: 850, r: .05}); }
+        if(s % 2 === 0){ const off = [0, 0, 12, 0, 0, 7, 12, 10][s / 2]; note(b, 'sawtooth', hz(ch[0] - 24 + off), t, .17, .06, {drive: true, cut: 850, r: .05}); }
+        if(s === 0 || s === 8) power(b, ch[0] - 12, t, .45, .035);
         const tones = [...ch, ch[0] + 12], pat = [0, 1, 2, 3, 2, 1, 2, 3, 0, 1, 2, 3, 2, 3, 1, 2];
         if(bar % 4 !== 3 || s < 8) note(b, 'square', hz(tones[pat[s]] + 12), t, .12, .022, {cut: 2600, pluck: .05, wet: .25});
+      }},
+    /* ---- fight music: every fight gets one, and they take turns so it doesn't get old ---- */
+    fight1: {bpm: 160, root: 50, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 0, 5, 6], vol: 1.1, delay: .28, fb: .2, fxcut: 2600, drive: 12, drvcut: 2200,  // the gallop
+      play(step, t, M, b){
+        const bar = step >> 4, s = step % 16, ch = chord(M, M.prog[bar % 4]);
+        if(s % 4 === 0 || s % 4 === 2 || s % 4 === 3) note(b, 'sawtooth', hz(ch[0] - 24), t, .09, .06, {drive: true, cut: 900, r: .03});
+        if(s === 0 || s === 8) power(b, ch[0] - 12, t, .5, .04);
+        if(s % 8 === 0) kick(b, t, .5); if(s === 3 || s === 11) kick(b, t, .3);
+        if(s === 4 || s === 12) snare(b, t);
+        if(s % 2 === 0) hit(b, t, .035, .02, 7000);
+        const ph = tune(step, 64, [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28], .8), ps = step % 32;
+        if(bar % 4 < 3 && ph[ps] !== undefined) note(b, 'square', hz(mel(M, ph[ps])), t, .17, .03, {cut: 2400, r: .04, wet: .2});
+      }},
+    fight2: {bpm: 140, root: 49, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 0, 1, 0], vol: .9, delay: .32, fb: .2, fxcut: 2200, drive: 18, drvcut: 1800,  // the chug: heavy, half-time, palm-muted
+      play(step, t, M, b){
+        const bar = step >> 4, s = step % 16, root = M.root + sc(M, M.prog[bar % 4]);
+        const chug = [1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1];
+        if(chug[s]) note(b, 'sawtooth', hz(root - 24), t, .1, .07, {drive: true, cut: 700, r: .03});
+        if(s === 0 || s === 10) power(b, root - 12, t, .6, .045);
+        if(s === 14 && bar % 2 === 1) power(b, root - 11, t, .25, .04);
+        if(s === 0 || s === 6 || s === 10) kick(b, t, .55);
+        if(s === 8) snare(b, t);
+        if(s % 2 === 0) hit(b, t, s % 4 ? .03 : .045, .03, 6500);
+        if(s === 0 && bar % 2 === 0) note(b, 'square', hz(root + 12), t, 1.2, .02, {cut: 1800, vib: 5, a: .05, r: .4, wet: .4});
+      }},
+    fight3: {bpm: 172, root: 45, scale: [0, 2, 3, 5, 7, 8, 10], prog: [0, 6, 5, 4], vol: 1.05, delay: .26, fb: .2, fxcut: 3000, drive: 8, drvcut: 2600,  // the sprint: fast and frantic
+      play(step, t, M, b){
+        const bar = step >> 4, s = step % 16, ch = chord(M, bar % 4 === 3 ? 4 : M.prog[bar % 4]);
+        const chd = bar % 4 === 3 ? [ch[0], ch[1] + 1, ch[2]] : ch;   // a major chord at the turnaround, for tension
+        if(s % 2 === 0) note(b, 'sawtooth', hz(chd[0] - 24 + (s % 4 ? 12 : 0)), t, .14, .055, {drive: true, cut: 1100, r: .03});
+        if(s % 4 === 0) kick(b, t, .45);
+        if(s === 4 || s === 12) snare(b, t);
+        hit(b, t, s % 2 ? .015 : .03, .015, 8000);
+        const arp = [chd[0], chd[1], chd[2], chd[0] + 12];
+        note(b, 'square', hz(arp[s % 4] + 12), t, .08, .018, {cut: 3000, pluck: .04, wet: .15});
+        if(s === 0) power(b, chd[0] - 12, t, .7, .035);
+      }},
+    fight4: {bpm: 148, root: 47, scale: [0, 2, 3, 5, 7, 9, 10], prog: [0, 0, 3, 6], vol: 1.1, delay: .34, fb: .25, fxcut: 2400, drive: 14, drvcut: 2000,  // the war drums
+      play(step, t, M, b){
+        const bar = step >> 4, s = step % 16, ch = chord(M, M.prog[bar % 4]);
+        const toms = {0: 1, 3: .7, 6: .8, 8: 1, 10: .6, 11: .6, 14: .9};
+        if(toms[s]) note(b, 'sine', s % 2 ? 110 : 150, t, .3, .35 * toms[s], {slide: s % 2 ? 62 : 75, slideT: .14, pluck: .08});
+        if(s === 4 || s === 12) snare(b, t);
+        if(s % 8 === 0) kick(b, t, .4);
+        if(s % 2 === 0){ const r = [0, 0, 7, 0, 10, 0, 7, 3][s / 2]; note(b, 'sawtooth', hz(ch[0] - 24 + r), t, .18, .055, {drive: true, cut: 900, r: .05}); }
+        const ph = tune(step, 64, [0, 4, 6, 8, 12, 16, 20, 22, 24], .8), ps = step % 32;
+        if(ph[ps] !== undefined) note(b, 'sawtooth', hz(mel(M, ph[ps])), t, .3, .03, {cut: 2000, a: .02, r: .1, vib: 5, wet: .25});
       }},
     /* ---- inside the buildings: each has its own theme ---- */
     shop: {bpm: 108, root: 60, scale: MAJ, prog: [0, 5, 3, 4], vol: 2.6, delay: .42, fb: .25, fxcut: 3500,  // bouncy and cheerful
@@ -4149,16 +4225,28 @@ const Music = (() => {
     const fx = ctx.createGain(), d = ctx.createDelay(2), fb = ctx.createGain(), lp = ctx.createBiquadFilter();
     d.delayTime.value = M.delay; fb.gain.value = M.fb; lp.type = 'lowpass'; lp.frequency.value = M.fxcut;
     fx.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(g);
-    return {g, dry, fx};
+    let drv = null;
+    if(M.drive){   // a distortion path for grungy guitars
+      drv = ctx.createGain(); const ws = ctx.createWaveShaper(), dl = ctx.createBiquadFilter(), n = 1024, curve = new Float32Array(n);
+      for(let i = 0; i < n; i++){ const x = i / (n - 1) * 2 - 1; curve[i] = Math.tanh(M.drive * x) / Math.tanh(M.drive); }
+      ws.curve = curve; ws.oversample = '2x'; dl.type = 'lowpass'; dl.frequency.value = M.drvcut || 2000;
+      const post = ctx.createGain(); post.gain.value = .35;
+      drv.connect(ws); ws.connect(dl); dl.connect(post); post.connect(g);
+    }
+    return {g, dry, fx, drv};
   }
   function moodNow(){
     if(!on || typeof S === 'undefined' || !S) return null;
     const r = S.run; if(!r) return INSIDE.includes(S.screen) ? S.screen : 'town';
-    if(r.phase === 'combat' && r.mon && r.mon.champion) return 'champion';
+    if(r.phase === 'combat' && r.mon){
+      if(r.mon.champion) return 'champion';
+      if(r.mon.uid !== fightUid){ fightUid = r.mon.uid; fightN = (fightN + 1) % FIGHTS.length; }
+      return FIGHTS[fightN];
+    }
     return r.abyss ? 'abyss' : 'dungeon';
   }
   function switchTo(w){
-    const now = ctx.currentTime, fast = w === 'champion' || cur === 'champion';
+    const isFight = k => k === 'champion' || (k || '').startsWith('fight'), now = ctx.currentTime, fast = isFight(w) || isFight(cur);
     if(cur && bus[cur]){ bus[cur].g.gain.cancelScheduledValues(now); bus[cur].g.gain.setTargetAtTime(0, now, fast ? .12 : .6); }
     cur = w; phrase = null; step = 0;
     if(!w) return;
@@ -4209,6 +4297,45 @@ const Music = (() => {
 })();
 function syncMusicBtn(){ const b = $('#musBtn'); if(!b) return; b.classList.toggle('off', !Music.on); b.setAttribute('aria-pressed', Music.on ? 'true' : 'false'); b.setAttribute('aria-label', Music.on ? 'Music on' : 'Music off'); }
 
+/* ============ tutorial ============
+   One-time tips: the first time you reach each part of the game, a card says what to do there.
+   They wait for any other card (the story, a floor card, an open sheet) to close first. */
+const TIPS = [
+  {id:'dead', when: r => r && r.phase==='dead', title:'You died',
+    text:'Dying costs you everything in your bag, your potions and scrolls, and half your gold. You keep your level, your equipped gear and anything stored in the Tavern stash. Wake up, patch yourself up, and try again.'},
+  {id:'fight', when: r => r && r.phase==='combat', title:'Fighting',
+    text:'Fights go in turns, and the Next row shows who acts next. <b>Attack</b> to hit, <b>Defend</b> to take half damage from the next blow, or <b>Flee</b> back the way you came. The <b>Potions</b> button heals you. Your card under the monster shows your health. Watch it: if it runs out, you die.'},
+  {id:'loot', when: r => r && r.phase==='loot', title:'Loot',
+    text:'Tap an item to compare it with what you’re wearing, and equip it if it’s better. Take what you want, then keep exploring. Anything you leave behind is gone.'},
+  {id:'stairs', when: r => r && r.phase==='explore' && r.floor && (r.floor.rooms[r.floor.cur]||{}).t==='stairs', title:'The stairs',
+    text:'Go down for tougher monsters and better loot, or head back to town. What you’re carrying, and any quest progress, only counts once you get home alive. If you die down here, your bag is lost.'},
+  {id:'points', when: r => (!r || r.phase==='explore') && S.hero.points > 0, title:'Level up',
+    text:'You have stat points to spend. Tap <b>Lv</b> in the top bar (or <b>Character</b>) to spend them. Each stat says what it does.'},
+  {id:'explore', when: r => r && r.phase==='explore', title:'Exploring',
+    text:'Each square on the map is a room. Tap a room next to yours to walk into it. You won’t know what’s inside until you step in, and monsters attack as soon as you do. Find the stairs to go deeper. You can only head back to town from the stairs, or from where you came in on floor 1.'},
+  {id:'home', when: r => !r && S.tipHome && S.screen==='town', title:'Home safe',
+    text:'Everything you carried home is yours to keep now. Sell loot at the <b>Shop</b>, rest at the <b>Tavern</b> and store valuables in its stash so they’re safe if you die. Townsfolk in each building offer quests for gold and reputation, and reputation unlocks their upgrades.'},
+  {id:'quests', when: r => !r && QUEST_GIVERS.includes(S.screen), title:'Quests and upgrades',
+    text:'Townsfolk give quests. You can hold one at a time, and progress only counts when you come home alive. Finishing quests earns gold and reputation here, and reputation unlocks this building’s permanent upgrades.'},
+  {id:'tavern', when: r => !r && S.screen==='tavern', title:'The Tavern',
+    text:'Rent a room to heal fully, or sleep in the stable for free once each time you’re in town. Your stash keeps items safe even if you die, but it doesn’t take bag space with you.'},
+  {id:'town', when: r => !r && S.screen==='town', title:'Welcome to Emberhold',
+    text:'Tap any building to go inside. The <b>Dungeon Gate</b> takes you down. Along the top are your health, level, bag and gold. A good start: look around the Shop, then head through the Dungeon Gate and try the first floor.'}
+];
+function tutorTick(){
+  if(!S || S.intro || S.tipsOff) return;
+  if(document.querySelector('.vn,.floorpop,.tip') || sheetOpen() || moving || busy) return;
+  S.tips = S.tips || {};
+  const r = S.run, t = TIPS.find(x => !S.tips[x.id] && x.when(r));
+  if(!t) return;
+  S.tips[t.id] = 1; if(t.id==='home') delete S.tipHome; save();
+  const el = document.createElement('div'); el.className = 'tip'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', t.title);
+  el.innerHTML = `<div class="tipbox"><div class="tipk">Tip</div><h3>${t.title}</h3><p>${t.text}</p>
+    <div class="tipbtns"><button class="btn primary" data-tip="ok">Got it</button><button class="linkbtn" data-tip="off">Skip all tips</button></div></div>`;
+  el.addEventListener('click', e => { const b = e.target.closest('[data-tip]'); if(!b) return; e.stopPropagation(); if(b.dataset.tip==='off'){ S.tipsOff = true; save(); } el.remove(); });
+  document.body.appendChild(el); el.querySelector('.btn').focus();
+}
+setInterval(tutorTick, 400);
 /* ============ boot ============ */
 const hadOldSave = (() => { try{ return !localStorage.getItem(SAVE_KEY) && !!localStorage.getItem('affix-deep-v1'); }catch(e){ return false; } })();
 if(!load()) newGame();
