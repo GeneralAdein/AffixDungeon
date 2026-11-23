@@ -757,6 +757,7 @@ svg[shape-rendering]{display:block}
 .rfpart .btn.risky{background:#8a2a1c;border-color:#3a0c08}
 .ftag{flex:none;align-self:center;margin-right:6px;font-size:15px;color:var(--muted);white-space:nowrap}
 .ftag.hot{color:var(--bad)}
+.rfpart .locked{color:var(--rare)}
 .shatter{padding:6px 2px}
 .shatter .tipk{color:var(--bad)}
 .shatter h3{font-size:22px;margin:2px 0 6px}
@@ -1468,8 +1469,8 @@ const IPRE = {
   lucky:{name:'Lucky',slots:['jewel','hands'],w:5,min:2,add:{crit:5,dodge:3},vm:1.4},
   vampiric:{name:'Vampiric',slots:['weapon','ring'],w:4,min:3,add:{lifesteal:8},vm:1.7},
   blessed:{name:'Blessed',slots:['gear'],w:3,min:3,add:{maxhp:4,regen:1},scale:true,vm:1.6},
-  masterwork:{name:'Masterwork',slots:['weapon','armor'],w:3,min:4,mul:{atk:1.25,def:1.25},add:{spd:4},vm:1.9},
-  ancient:{name:'Ancient',slots:['weapon','armor'],w:2,min:6,mul:{atk:1.5,def:1.5},vm:2.2},
+  masterwork:{smith:1,name:'Masterwork',slots:['weapon','armor'],w:3,min:4,mul:{atk:1.25,def:1.25},add:{spd:4},vm:1.9},
+  ancient:{smith:2,name:'Ancient',slots:['weapon','armor'],w:2,min:6,mul:{atk:1.5,def:1.5},vm:2.2},
   cursed:{name:'Cursed',slots:['weapon','jewel'],w:4,min:2,mul:{atk:1.2},add:{crit:8,maxhp:-12},vm:.9},
   rusty:{name:'Rusty',slots:['weapon','armor'],w:6,min:1,mul:{atk:.75,def:.75},neg:true,vm:.5},
   dull:{name:'Dull',slots:['weapon'],w:6,min:1,mul:{atk:.85},add:{crit:-4},neg:true,vm:.6},
@@ -1518,7 +1519,7 @@ const ISUF = {
   fire:{name:'of Fire',slots:['weapon','ring'],w:6,min:2,add:{fire:3},scale:true,vm:1.5},
   thorns:{name:'of Thorns',slots:['body','shield'],w:5,min:2,add:{thorns:20},vm:1.4},
   regeneration:{name:'of Regeneration',slots:['body','head','jewel'],w:5,min:3,add:{regen:3},vm:1.6},
-  titan:{name:'of the Titan',slots:['weapon','body'],w:2,min:6,mul:{atk:1.2},add:{maxhp:15},scale:true,vm:2},
+  titan:{smith:2,name:'of the Titan',slots:['weapon','body'],w:2,min:6,mul:{atk:1.2},add:{maxhp:15},scale:true,vm:2},
   recklessness:{name:'of Recklessness',slots:['weapon'],w:4,min:2,mul:{atk:1.3},add:{def:-3},vm:1.1},
   burden:{name:'of Burden',slots:['body','shield'],w:4,min:2,mul:{def:1.25},add:{spd:-12},vm:1},
   glass:{name:'of Glass',slots:['weapon','ring'],w:3,min:2,add:{crit:15,maxhp:-15},vm:1},
@@ -1916,7 +1917,7 @@ const PERKS = {
   blessing:{b:'temple', name:'Blessing', desc:'+2% max health per level.', max:10, base:4000, pow:1.5, now:l => `+${l*2}% max health`},
   pouch:{b:'apothecary', name:'Potion Pouches', desc:'+3 potion bag slots per level.', max:5, base:3000, pow:1.5, now:l => `Potion bag holds ${POTION_BASE+3*l}`},
   holster:{b:'apothecary', name:'Scroll Case', desc:'+3 scroll bag slots per level.', max:5, base:3000, pow:1.5, now:l => `Scroll bag holds ${SCROLL_BASE+3*l}`},
-  favor:{b:'smithy', name:'Smith’s Favor', desc:'Shop gear is one item level higher per level.', max:3, base:8000, pow:1.6, repStep:3, now:l => `Shop gear +${l} levels`},
+  favor:{b:'smithy', name:'Smith’s Favor', desc:'Shop gear is one item level higher per level. Level 1 lets the smith reforge Masterwork; level 2 adds Ancient and of the Titan.', max:3, base:8000, pow:1.6, repStep:3, now:l => `Shop gear +${l} levels; reforges can roll ${l >= 2 ? 'Masterwork, Ancient and of the Titan' : 'Masterwork'}`},
   vault:{b:'bank', name:'Vault', desc:'Lose 5% less gold when you die, per level.', max:5, base:4000, pow:1.6, now:l => `Death costs ${50-l*5}% of your gold`},
   charts:{b:'cartographer', name:'Master Charts', desc:'The stairs are marked on every floor’s map.', max:1, base:100000, pow:1, rep:6, now:l => 'Stairs always marked'}
 };
@@ -2147,7 +2148,7 @@ function forgeRisk(it){ const n = it.forged||0; return FORGE_RISK[Math.min(n, FO
 function reforge(id, which){
   const it = findItem(id); if(!it || !isGear(it)) return;
   const c = reforgeCost(it); if(S.hero.gold < c) return;
-  const pool = Object.values(which==='pre' ? IPRE : ISUF).filter(a => a.min <= it.ilvl && fits(a, it.base));
+  const pool = reforgePool(it, which);
   if(!pool.length) return toast('Nothing to reforge into.');
   if(!it.fb) it.fb = forgeBase(it);
   S.hero.gold -= c;
@@ -2174,7 +2175,8 @@ function forgeTag(it){ const n = it.forged||0, r = forgeRisk(it); return n ? `<s
    right away) or something in your bag (only the item changes), and what each button rerolls. */
 let lastReforge = null;
 function wornSlot(it){ return SLOTS.find(sl => S.hero.equip[sl] === it) || null; }
-function reforgePool(it, which){ return Object.values(which==='pre' ? IPRE : ISUF).filter(a => a.min <= it.ilvl && fits(a, it.base)); }
+/* the top affixes only come off the anvil once you've earned the smith's favor */
+function reforgePool(it, which, all){ return Object.values(which==='pre' ? IPRE : ISUF).filter(a => a.min <= it.ilvl && fits(a, it.base) && (all || (a.smith||0) <= perk('favor'))); }
 function statChanges(a, b, rows){
   const out = [];
   for(const [k,l] of rows){ const x = a[k] || 0, y = b[k] || 0; if(Math.round(x*10) !== Math.round(y*10)) out.push(`<li class="${y>x?'up':'down'}">${l} ${+x.toFixed(1)}→${+y.toFixed(1)}</li>`); }
@@ -2195,6 +2197,7 @@ function smithSheet(it){
     const does = cur ? `Replaces ${cur.name} with a random ${label}.` : `Adds a random ${label}.`;
     return `<div class="rfpart"><div class="rfhead">${cap(label)}</div><p>${now}</p>
       <p class="sub">${does}${other ? ` ${other} stays.` : ''} ${pool.length} possible ${label}es${bad ? `, ${bad} of them bad` : ''}.</p>
+      ${(() => { const locked = reforgePool(it, which, true).filter(a => (a.smith||0) > perk('favor')); return locked.length ? `<p class="sub locked">${locked.map(a => `${a.name} needs Smith’s Favor ${a.smith}`).join('. ')}.</p>` : ''; })()}
       <button class="btn primary ${risk?'risky':''}" data-act="reforge" data-arg="${it.uid}|${which}" ${poor||!pool.length?'disabled':''}>Reforge ${label} ${priceTag(c)}${risk ? `<small>${risk}% risk</small>` : ''}</button></div>`;
   };
   let result = '';
