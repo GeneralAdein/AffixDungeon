@@ -748,6 +748,19 @@ svg[shape-rendering]{display:block}
 .rfresult b{font-weight:400}
 .rfgroup{margin:10px 0 4px;font-size:19px}
 .rfgroup b{font-family:'Pixelify Sans','VT323',monospace;font-weight:600}
+.forgeodds{display:flex;flex-direction:column;gap:2px;margin-top:8px;padding:8px 10px;background:var(--panel);border:2px solid var(--frame)}
+.forgeodds b{font-weight:400}
+.forgeodds>b{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:18px}
+.forgeodds span{font-size:18px;line-height:1.15;color:var(--muted)}
+.forgeodds.hot{border-color:var(--bad)}
+.rfpart .btn small{display:block;font-size:14px;opacity:.9}
+.rfpart .btn.risky{background:#8a2a1c;border-color:#3a0c08}
+.ftag{flex:none;align-self:center;margin-right:6px;font-size:15px;color:var(--muted);white-space:nowrap}
+.ftag.hot{color:var(--bad)}
+.shatter{padding:6px 2px}
+.shatter .tipk{color:var(--bad)}
+.shatter h3{font-size:22px;margin:2px 0 6px}
+.shatter p{font-size:19px;line-height:1.2;margin-top:4px}
 /* ===== Tutorial tips ===== */
 .tip{position:fixed;inset:0;z-index:65;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(6,5,9,.45)}
 .tipbox{width:100%;max-width:460px;background:#16151e;border:3px solid #f2c444;box-shadow:0 0 0 3px #16151e,0 0 0 5px #5a5446;padding:12px 14px;margin-bottom:8px;color:#ebe2cc}
@@ -2089,9 +2102,9 @@ function buildingView(b){
   }
   if(b==='smithy'){
     const worn = SLOTS.map(sl => S.hero.equip[sl]).filter(Boolean), gear = S.hero.bag.filter(isGear);
-    extra = `<h3 class="section-h">Reforge</h3><p class="sub" style="margin-bottom:6px">Tap a piece of gear to reroll its prefix or suffix. The new roll can be better or worse.</p>
-      ${worn.length ? `<p class="rfgroup"><b>Equipped</b> <span class="sub">reforging changes your stats right away</span></p><div class="rows">${worn.map(it => itemRow(it, 'smithy')).join('')}</div>` : ''}
-      ${gear.length ? `<p class="rfgroup"><b>In your bag</b> <span class="sub">reforging changes only the item</span></p><div class="rows">${gear.map(it => itemRow(it, 'smithy')).join('')}</div>` : ''}
+    extra = `<h3 class="section-h">Reforge</h3><p class="sub" style="margin-bottom:6px">Tap a piece of gear to reroll its prefix or suffix. The new roll can be better or worse. Each reforge on the same item costs more, and after the first two it might shatter.</p>
+      ${worn.length ? `<p class="rfgroup"><b>Equipped</b> <span class="sub">reforging changes your stats right away</span></p><div class="rows">${worn.map(it => itemRow(it, 'smithy', forgeTag(it))).join('')}</div>` : ''}
+      ${gear.length ? `<p class="rfgroup"><b>In your bag</b> <span class="sub">reforging changes only the item</span></p><div class="rows">${gear.map(it => itemRow(it, 'smithy', forgeTag(it))).join('')}</div>` : ''}
       ${!worn.length && !gear.length ? '<p class="empty-note">You have no gear to reforge.</p>' : ''}`;
   }
   if(b==='cartographer'){
@@ -2125,13 +2138,30 @@ function guildView(){
 }
 
 /* ---------- reforging ---------- */
-function reforgeCost(it){ return Math.max(150, Math.round(itemValue(it)*3/10)*10); }
+/* Each reforge on the same item costs 50% more than the last, from a price fixed at its first reforge
+   (so a bad roll can't make the next try cheaper), and after two safe tries the item may shatter. */
+const FORGE_RISK = [0, 0, 5, 10, 18, 28, 40, 50, 60];
+function forgeBase(it){ return it.fb || Math.max(150, Math.round(itemValue(it)*3/10)*10); }
+function reforgeCost(it){ return Math.round(forgeBase(it) * Math.pow(1.5, it.forged||0) / 10) * 10; }
+function forgeRisk(it){ const n = it.forged||0; return FORGE_RISK[Math.min(n, FORGE_RISK.length-1)]; }
 function reforge(id, which){
   const it = findItem(id); if(!it || !isGear(it)) return;
   const c = reforgeCost(it); if(S.hero.gold < c) return;
   const pool = Object.values(which==='pre' ? IPRE : ISUF).filter(a => a.min <= it.ilvl && fits(a, it.base));
   if(!pool.length) return toast('Nothing to reforge into.');
+  if(!it.fb) it.fb = forgeBase(it);
   S.hero.gold -= c;
+  if(Math.random()*100 < forgeRisk(it)){
+    const name = itemNameHtml(it), slot = wornSlot(it);
+    if(slot) S.hero.equip[slot] = null; else { const f = findIn(S.hero.bag, it.uid); if(f) S.hero.bag.splice(f.i, 1); }
+    lastReforge = null; S.hero.hp = Math.min(S.hero.hp, heroStats().maxhp);
+    save(); render();
+    openSheet(`<div class="grab"></div><div class="shatter"><div class="tipk">Destroyed</div><h3>It shatters on the anvil</h3>
+      <p>Your ${name} couldn’t take another reforge. It’s gone${slot ? ', and you’re no longer wearing it' : ''}.</p>
+      <p class="sub">${c} gold spent.</p></div><div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`, 'item');
+    return;
+  }
+  it.forged = (it.forged||0) + 1;
   const old = it[which], hBefore = heroStats(), iBefore = itemStats(it);
   it[which] = weighted(pool).id;
   it.rarity = it.pre && it.suf ? 'rare' : (it.pre || it.suf) ? 'magic' : 'normal';
@@ -2139,6 +2169,7 @@ function reforge(id, which){
   save(); render(); openSheet(smithSheet(it), 'item');
 }
 
+function forgeTag(it){ const n = it.forged||0, r = forgeRisk(it); return n ? `<span class="ftag ${r?'hot':''}">${n}× ${r ? `· ${r}% risk` : ''}</span>` : ''; }
 /* The smith's anvil: makes clear whether you're reforging something you're wearing (your stats change
    right away) or something in your bag (only the item changes), and what each button rerolls. */
 let lastReforge = null;
@@ -2151,7 +2182,7 @@ function statChanges(a, b, rows){
 }
 const ITEM_ROWS = [['atk','Damage'],['def','Armor'],['block','Block'],['spd','Speed'],['crit','Critical'],['dodge','Dodge'],['spell','Spell power'],['maxhp','Max health'],['gold','Gold found'],['regen','Regen'],['lifesteal','Life steal'],['thorns','Reflect']];
 function smithSheet(it){
-  const h = S.hero, kind = IBASE[it.base].kind, slot = wornSlot(it), c = reforgeCost(it), poor = h.gold < c;
+  const h = S.hero, kind = IBASE[it.base].kind, slot = wornSlot(it), c = reforgeCost(it), poor = h.gold < c, risk = forgeRisk(it), n = it.forged||0;
   const where = slot
     ? `<div class="where worn"><b>Equipped</b><span>You’re wearing this. Reforging it changes your stats right away.</span></div>`
     : `<div class="where bag"><b>In your bag</b><span>Reforging changes only this item. Your stats stay the same unless you equip it.</span></div>`;
@@ -2164,7 +2195,7 @@ function smithSheet(it){
     const does = cur ? `Replaces ${cur.name} with a random ${label}.` : `Adds a random ${label}.`;
     return `<div class="rfpart"><div class="rfhead">${cap(label)}</div><p>${now}</p>
       <p class="sub">${does}${other ? ` ${other} stays.` : ''} ${pool.length} possible ${label}es${bad ? `, ${bad} of them bad` : ''}.</p>
-      <button class="btn primary" data-act="reforge" data-arg="${it.uid}|${which}" ${poor||!pool.length?'disabled':''}>Reforge ${label} ${priceTag(c)}</button></div>`;
+      <button class="btn primary ${risk?'risky':''}" data-act="reforge" data-arg="${it.uid}|${which}" ${poor||!pool.length?'disabled':''}>Reforge ${label} ${priceTag(c)}${risk ? `<small>${risk}% risk</small>` : ''}</button></div>`;
   };
   let result = '';
   const L = lastReforge;
@@ -2174,7 +2205,10 @@ function smithSheet(it){
     const lines = L.worn ? statChanges(L.hBefore, heroStats(), STAT_ROWS) : statChanges(L.iBefore, itemStats(it), ITEM_ROWS);
     result = `<div class="delta rfresult"><h4>Last reforge: ${head}</h4><p class="sub">${L.worn ? 'Your stats' : 'This item'}:</p>${lines.length ? `<ul>${lines.join('')}</ul>` : '<p class="sub">No change.</p>'}</div>`;
   }
-  return `<div class="grab"></div>${where}${result}${cards}
+  const nextRisk = FORGE_RISK[Math.min(n+1, FORGE_RISK.length-1)];
+  const odds = `<div class="forgeodds ${risk ? 'hot' : ''}"><b>${n ? `Reforged ${n} time${n===1?'':'s'}` : 'Never reforged'}</b>
+    <span>Next reforge: ${priceTag(c)}${risk ? `, <b class="down">${risk}% chance it shatters</b>` : ', no risk'}. ${n < 2 ? `The first two reforges are safe. After that, each try` : `Each try`} costs more${nextRisk > risk ? ` and is riskier (${nextRisk}% after this one)` : ''}.</span></div>`;
+  return `<div class="grab"></div>${where}${result}${cards}${odds}
     <div class="rfparts">${part('pre')}${part('suf')}</div>
     ${poor ? `<p class="sub down" style="margin-top:6px">You need ${c} gold to reforge this.</p>` : ''}
     <div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
