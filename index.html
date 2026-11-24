@@ -762,6 +762,19 @@ svg[shape-rendering]{display:block}
 .shatter .tipk{color:var(--bad)}
 .shatter h3{font-size:22px;margin:2px 0 6px}
 .shatter p{font-size:19px;line-height:1.2;margin-top:4px}
+
+/* ===== Preferences ===== */
+.hud-pref{margin-right:-10px}
+.prefs{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.prefrow{display:flex;align-items:center;gap:12px;width:100%;padding:10px;text-align:left;background:var(--panel);border:2px solid var(--frame);color:var(--ink)}
+.prefrow .ptxt{flex:1;display:flex;flex-direction:column;gap:2px}
+.prefrow b{font-family:'Pixelify Sans','VT323',monospace;font-weight:600;font-size:19px}
+.prefrow .sub{font-size:17px;line-height:1.15}
+.pswitch{flex:none;width:46px;height:26px;border:2px solid var(--frame);background:var(--panel2);position:relative}
+.pswitch i{position:absolute;top:2px;left:2px;width:18px;height:18px;background:var(--muted)}
+.pswitch.on{background:var(--good)}
+.pswitch.on i{left:22px;background:#fff}
+.prefs .linkbtn{align-self:flex-start}
 /* ===== Tutorial tips ===== */
 .tip{position:fixed;inset:0;z-index:65;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(6,5,9,.45)}
 .tipbox{width:100%;max-width:460px;background:#16151e;border:3px solid #f2c444;box-shadow:0 0 0 3px #16151e,0 0 0 5px #5a5446;padding:12px 14px;margin-bottom:8px;color:#ebe2cc}
@@ -885,6 +898,7 @@ svg[shape-rendering]{display:block}
     <button class="hud-lv" data-act="stats" aria-label="Open character stats"><span id="lvTxt"></span><div class="bar xpbar"><i id="xpFill"></i></div></button>
     <button class="hud-bag" id="hudBag" data-act="bag" aria-label="Open inventory"><span id="bagIco"></span><span id="bagTxt"></span></button>
     <div class="hud-gold"><span class="coin"></span><span id="goldTxt"></span></div>
+    <button class="hud-mus hud-pref" data-act="prefs" aria-label="Preferences"><svg viewBox="0 0 8 8" width="16" height="16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h2v1h1v1h1v1h1v2H7v1H6v1H5v1H3V7H2V6H1V5H0V3h1V2h1V1h1zM3 3v2h2V3z"/></svg></button>
     <button class="hud-mus" id="musBtn" data-act="music" aria-label="Music on" aria-pressed="true"><svg viewBox="0 0 8 8" width="16" height="16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h5v2H4v4H3zM7 2h1v4H7zM1 5h3v3H1zM5 5h3v2H5z"/></svg></button>
     <div id="heroFloat" class="floats hero-floats"></div>
   </header>
@@ -1596,8 +1610,21 @@ function beltCount(){ return packCount('belt') + packCount('scrolls'); }
 function heroLists(){ return [S.hero.bag, packList('belt'), packList('scrolls')]; }
 function listOf(id){ return heroLists().find(l => findIn(l, id)) || S.hero.bag; }
 /* Is there room for this item? Matching potions and scrolls stack, and the belt holds them without using bag slots. */
+/* Potions only ever go in the potion bag, never the main inventory. When it's full, the auto-swap
+   preference can leave the weakest potions behind to make room for a stronger one. */
+const isPotion = it => IBASE[it.base].kind==='potion';
+const potionWorth = it => itemValue(it);
+function potionRoom(it){
+  const need = packCount('belt') + (it.qty||1) - packCap('belt');
+  if(need <= 0) return true;
+  if(!pref('autoSwap')) return false;
+  const w = potionWorth(it);
+  return packList('belt').filter(x => stackKey(x)!==stackKey(it) && potionWorth(x) < w).reduce((a,x) => a + (x.qty||1), 0) >= need;
+}
+function potionFullMsg(){ return pref('autoSwap') ? 'Your potion bag is full of potions at least as good as this one.' : 'Your potion bag is full. Drink or drop a potion first, or turn on auto-swap in Preferences.'; }
 function roomFor(it){
   const h = S.hero;
+  if(isPotion(it)) return potionRoom(it);
   if(isConsumable(it)){
     const k = packKey(it); if(packCount(k) + (it.qty||1) <= packCap(k)) return true;
     if(h.bag.some(x => isConsumable(x) && stackKey(x)===stackKey(it) && (x.qty||1) + (it.qty||1) <= STACK_MAX)) return true;
@@ -1606,6 +1633,21 @@ function roomFor(it){
 }
 function addToBag(it){
   const h = S.hero;
+  if(isPotion(it)){
+    it.qty = it.qty || 1;
+    if(!potionRoom(it)) return false;
+    const L = packList('belt'), left = {};
+    while(packCount('belt') + it.qty > packCap('belt')){
+      const weak = L.filter(x => stackKey(x)!==stackKey(it) && potionWorth(x) < potionWorth(it)).sort((a,b) => potionWorth(a) - potionWorth(b))[0];
+      if(!weak) break;
+      const n = itemName(weak); left[n] = (left[n]||0) + 1;
+      if((weak.qty||1) > 1) weak.qty--; else L.splice(L.indexOf(weak), 1);
+    }
+    const s = L.find(x => stackKey(x)===stackKey(it)); if(s) s.qty = (s.qty||1) + it.qty; else L.push(it);
+    const names = Object.entries(left).map(([n,c]) => `${c > 1 ? c+' ' : ''}${n}`);
+    if(names.length) setTimeout(() => toast(`Potion bag full: left behind ${names.join(' and ')} to make room.`), 0);
+    return true;
+  }
   if(isConsumable(it)){
     it.qty = it.qty || 1;
     const k = packKey(it);
@@ -1621,13 +1663,15 @@ function addToBag(it){
 function bagMax(){ return BAG_BASE + 2*perk('pack'); }
 function newGame(){
   const equip = emptyEquip(); equip.weapon = mk('shortsword'); equip.body = mk('padded');
-  S = {v:2, hero:{lvl:1,xp:0,hp:1,gold:40,attr:{str:0,dex:0,vit:0,int:0,lck:0},points:0,equip,bag:[mk('potion'),mk('potion'),mk('flame')],deepest:0}, stash:[], shop:null, run:null, screen:'town', town:{}, perks:{}, rep:{}, quests:{}, mats:{}, townMigrated:true, intro:true};
+  S = {v:2, hero:{lvl:1,xp:0,hp:1,gold:40,attr:{str:0,dex:0,vit:0,int:0,lck:0},points:0,equip,bag:[mk('flame')],belt:[Object.assign(mk('potion'),{qty:2})],deepest:0}, stash:[], shop:null, run:null, screen:'town', town:{}, perks:{}, rep:{}, quests:{}, mats:{}, townMigrated:true, intro:true};
   S.hero.hp = heroStats().maxhp;
   S.shop = genShop();
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function load(){
-  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; S.perks = S.perks || {}; S.rep = S.rep || {}; S.mats = S.mats || {}; migrateTown(); activeQuests().slice(1).forEach(q => { q.status = 'offered'; q.have = 0; }); if(S.stones && Object.keys(S.stones).length) S.wallFound = true; { const b = S.hero.belt || []; S.hero.scrolls = S.hero.scrolls || []; for(const it of b.filter(x => IBASE[x.base].kind==='scroll')){ b.splice(b.indexOf(it),1); S.hero.scrolls.push(it); } packUp(); } if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
+  try{ const raw = localStorage.getItem(SAVE_KEY); if(raw){ const d = JSON.parse(raw); if(d && d.v === 2 && d.hero) { S = d; S.town = S.town || {}; S.perks = S.perks || {}; S.rep = S.rep || {}; S.mats = S.mats || {}; migrateTown(); activeQuests().slice(1).forEach(q => { q.status = 'offered'; q.have = 0; }); if(S.stones && Object.keys(S.stones).length) S.wallFound = true; { const b = S.hero.belt || []; S.hero.scrolls = S.hero.scrolls || []; for(const it of b.filter(x => IBASE[x.base].kind==='scroll')){ b.splice(b.indexOf(it),1); S.hero.scrolls.push(it); } packUp();
+        for(const it of S.hero.bag.filter(isPotion)){ S.hero.bag.splice(S.hero.bag.indexOf(it),1); const room = packCap('belt') - packCount('belt'), q = it.qty||1;
+          if(q <= room) addToBag(it); else { if(room > 0) addToBag(Object.assign({}, it, {uid:uid(), qty:room})); S.stash.push(Object.assign(it, {qty:q-Math.max(0,room)})); } } } if(S.run && (!S.run.floor || !S.run.floor.rooms)) S.run = null; if(!S.hero.attr){ S.hero.attr = {str:0,dex:0,vit:0,int:0,lck:0}; S.hero.points = POINTS_PER_LEVEL*(S.hero.lvl-1); } return true; } } }catch(e){}
   return false;
 }
 
@@ -2489,7 +2533,7 @@ function shopView(){
     const sl = stapleLvl();
     const staples = STAPLES.map(b => { const it = mk(b, sl); const p = itemValue(it);
       return `<div class="row"><span class="ico">${ICON[IBASE[b].icon]}</span><span style="flex:1"><span class="nm">${IBASE[b].name}</span><br><span class="sub">Lv ${sl}, ${itemShort(it)}</span></span>
-      <button class="btn sm" data-act="buyStaple" data-arg="${b}" ${h.gold<p||full?'disabled':''}>${priceTag(p)}</button></div>`; }).join('');
+      <button class="btn sm" data-act="buyStaple" data-arg="${b}" ${h.gold<p||!roomFor(it)?'disabled':''}>${priceTag(p)}</button></div>`; }).join('');
     const wares = S.shop.items.length ? S.shop.items.map(it => itemRow(it, 'shopBuy', `<button class="btn sm" data-act="buy" data-arg="${it.uid}" ${h.gold<itemValue(it)||full?'disabled':''}>${priceTag(itemValue(it))}</button>`)).join('') : `<p class="empty-note">Sold out. Restock or come back after your next run.</p>`;
     body = `<h3 class="section-h">Upgrades <small class="sub">Permanent</small></h3><div class="rows">${perkRow('pack')}</div>
       <h3 class="section-h">Always in stock</h3><div class="rows">${staples}</div>
@@ -3913,7 +3957,7 @@ function drinkLoot(id){
 }
 function takeLoot(id){
   const r = R(); const f = r && findIn(r.loot, id); if(!f) return;
-  if(!roomFor(f.it)){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; }
+  if(!roomFor(f.it)){ if(isPotion(f.it)){ toast(potionFullMsg()); openSheet(packSheet('potion'),'pack'); return; } toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; }
   r.loot.splice(f.i,1); addToBag(f.it);
   toast(`Picked up ${itemName(f.it)}.`);
   save(); render();
@@ -3943,7 +3987,7 @@ const ACT = {
   drop: a => { const list = listOf(a); const f = findIn(list, a); if(!f) return; list.splice(f.i,1); toast(`Dropped ${itemName(f.it)}.`); save(); render(); openSheet(bagSheet(),'bag'); },
   take: a => takeLoot(a),
   drinkLoot: a => drinkLoot(a),
-  takeAll: () => { const r = R(); if(!r.loot.some(roomFor)){ toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; } let n = 0; for(const it of r.loot.slice()){ if(roomFor(it)){ r.loot.splice(r.loot.indexOf(it),1); addToBag(it); n++; } } if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); if(r.loot.length){ toast(`Took ${n}. Your bag is full now.`); openSheet(bagSheet(),'bag'); } else toast(`Took ${n} item${n===1?'':'s'}.`); },
+  takeAll: () => { const r = R(); if(!r.loot.some(roomFor)){ if(r.loot.every(isPotion)){ toast(potionFullMsg()); openSheet(packSheet('potion'),'pack'); return; } toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; } let n = 0; for(const it of r.loot.slice()){ if(roomFor(it)){ r.loot.splice(r.loot.indexOf(it),1); addToBag(it); n++; } } if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); if(r.loot.length){ if(r.loot.every(isPotion)){ toast(`Took ${n}. ${potionFullMsg()}`); } else { toast(`Took ${n}. Your bag is full now.`); openSheet(bagSheet(),'bag'); } } else toast(`Took ${n} item${n===1?'':'s'}.`); },
   next: () => nextStep(),
   descend: () => { const r = R(); if(moving) return; closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
     const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
@@ -4033,11 +4077,15 @@ const ACT = {
     const D = DIFF[q.diff]; S.hero.gold += D.gold; S.rep = S.rep || {}; S.rep[b] = (S.rep[b]||0) + D.rep; stats().quests++;
     qs[i] = genQuest(b, q.diff); toast(`Quest complete! +${D.gold} gold and +${D.rep} reputation.`); save(); render(); if(sheetKind==='notice') openSheet(noticeSheet(),'notice'); },
   buyRemedy: a => { const [base,lv,pre,suf] = a.split('|'); const it = mk(base, +lv, pre||null, suf||null), p = itemValue(it);
-    if(S.hero.gold < p) return; if(!roomFor(it)) return toast('No room for it.'); S.hero.gold -= p; addToBag(it); toast(`Bought ${itemName(it)}.`); save(); render(); },
+    if(S.hero.gold < p) return; if(!roomFor(it)) return toast(isPotion(it) ? potionFullMsg() : 'No room for it.'); S.hero.gold -= p; addToBag(it); toast(`Bought ${itemName(it)}.`); save(); render(); },
   reforge: a => { const [id,w] = a.split('|'); reforge(id, w); },
   townGo: a => townGo(a),
   rumor: () => toast(pick(RUMORS)),
-  tipsAgain: () => { S.tips = {}; S.tipsOff = false; save(); toast('Tips will show again as you play.'); },
+  tipsAgain: () => { S.tips = {}; S.tipsOff = false; save(); toast('Tips will show again as you play.'); if(sheetKind==='prefs') openSheet(prefsSheet(), 'prefs'); },
+  prefs: () => openSheet(prefsSheet(), 'prefs'),
+  prefSwap: () => { setPref('autoSwap', !pref('autoSwap')); openSheet(prefsSheet(), 'prefs'); },
+  prefMusic: () => { Music.toggle(); syncMusicBtn(); openSheet(prefsSheet(), 'prefs'); },
+  prefTips: () => { S.tipsOff = !S.tipsOff; save(); openSheet(prefsSheet(), 'prefs'); },
   music: () => { Music.toggle(); syncMusicBtn(); },
   reset: () => { closeSheet(); newGame(); save(); render(); storyIntro(); }
 };
@@ -4476,6 +4524,21 @@ function tutorTick(){
   document.body.appendChild(el); el.querySelector('.btn').focus();
 }
 setInterval(tutorTick, 400);
+/* ============ preferences ============ */
+const PREF_DEFAULTS = {autoSwap:true};
+function pref(k){ const p = (S && S.prefs) || {}; return p[k] !== undefined ? p[k] : PREF_DEFAULTS[k]; }
+function setPref(k, v){ S.prefs = S.prefs || {}; S.prefs[k] = v; save(); }
+function toggleRow(act, on, title, desc){
+  return `<button class="prefrow" data-act="${act}" role="switch" aria-checked="${on}"><span class="ptxt"><b>${title}</b><span class="sub">${desc}</span></span><span class="pswitch ${on?'on':''}"><i></i></span></button>`;
+}
+function prefsSheet(){
+  return `<div class="grab"></div><h3 class="sheet-title">Preferences</h3><div class="prefs">
+    ${toggleRow('prefSwap', pref('autoSwap'), 'Auto-swap potions', 'When your potion bag is full and you pick up a stronger potion, leave your weakest potion behind to make room.')}
+    ${toggleRow('prefMusic', Music.on, 'Music', 'Music in town, in each building, in the dungeon and in fights.')}
+    ${toggleRow('prefTips', !S.tipsOff, 'Tutorial tips', 'Short tips the first time you reach each part of the game.')}
+    <button class="linkbtn" data-act="tipsAgain">Show every tip again</button>
+  </div><div class="sheet-actions"><button class="btn" data-act="closeSheet">Close</button></div>`;
+}
 /* ============ boot ============ */
 const hadOldSave = (() => { try{ return !localStorage.getItem(SAVE_KEY) && !!localStorage.getItem('affix-deep-v1'); }catch(e){ return false; } })();
 if(!load()) newGame();
