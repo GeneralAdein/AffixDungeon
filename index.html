@@ -4056,7 +4056,8 @@ document.addEventListener('keydown', e => {
    (fast and dark). Browsers only allow sound after a tap, so it starts on your first one. */
 const Music = (() => {
   let ctx = null, master = null, noise = null, timer = null, cur = null, step = 0, nextT = 0, phrase = null, on = true;
-  let fightUid = null, fightN = Math.floor(Math.random() * 4);
+  let fightUid = null, fightN = Math.floor(Math.random() * 4), dunDepth = null, dunN = Math.floor(Math.random() * 4);
+  const DUNGEONS = ['dungeon', 'dungeon2', 'dungeon3', 'dungeon4'];
   const FIGHTS = ['fight1', 'fight2', 'fight3', 'fight4'];
   const bus = {}, INSIDE = ['shop', 'tavern', 'guild', 'cellar', 'yard', 'temple', 'smithy', 'apothecary', 'bank', 'cartographer'];
   try{ on = localStorage.getItem('affix-deep-music') !== 'off'; }catch(e){}
@@ -4148,6 +4149,45 @@ const Music = (() => {
         // feedback and far-off ringing
         if(s === 4 && Math.random() < .25) note(b, 'sawtooth', hz(root + 6), t, beat * 2.5, .015, {drive: true, a: .6, r: 1, vib: 6});
         if(s % 2 === 0 && Math.random() < .05) bell(b, hz(M.root + 24 + rnd([0, 1, 6, 7])), t, .02, .5, .8);
+      }},
+    dungeon2: {bpm: 72, root: 50, scale: [0, 1, 3, 5, 6, 8, 10], prog: [0, 0, 0, 1], vol: 1.05, delay: .75, fb: .42, fxcut: 1300, drive: 16, drvcut: 1400,  // the doom crawl: a creeping tritone riff and toms
+      play(step, t, M, b){
+        const beat = 60 / M.bpm, bar = step >> 4, s = step % 16, root = M.root - 12 + sc(M, M.prog[bar % 4]);
+        // root, a step down a half tone, then the tritone: the classic sound of something wrong
+        const riff = {0: 0, 4: 0, 6: -1, 8: 6, 12: 5, 14: bar % 2 ? 3 : 1};
+        if(riff[s] !== undefined) power(b, root + riff[s] - (riff[s] > 4 ? 12 : 0), t, beat * (s === 8 ? 1 : .55), .045);
+        if(s === 0 && bar % 4 === 0) note(b, 'sawtooth', hz(M.root - 24), t, beat * 16.5, .04, {a: 3, r: 3, cut: 200});
+        if(s === 0 || s === 8) kick(b, t, .45);
+        if(s === 12) snare(b, t);
+        const toms = {6: [140, 70], 10: [110, 58], 14: [90, 48]};
+        if(toms[s] && bar % 2 === 1) note(b, 'sine', toms[s][0], t, .5, .3, {slide: toms[s][1], slideT: .2, pluck: .12, wet: .3});
+        if(s % 4 === 0) hit(b, t, .02, .15, 5200, true, {q: 8, wet: .4});   // a ride cymbal's bell
+        if(s === 2 && bar % 4 === 2) note(b, 'sawtooth', hz(root + 18), t, beat * 3, .012, {drive: true, a: .8, r: 1, vib: 5});
+      }},
+    dungeon3: {bpm: 88, root: 40, scale: [0, 3, 5, 6, 7, 10, 12], prog: [0, 0, 2, 0], vol: 1.05, delay: .5, fb: .35, fxcut: 1600, drive: 12, drvcut: 1800,  // the stoner groove: a swung, bluesy riff with bends
+      play(step, t, M, b){
+        const beat = 60 / M.bpm, bar = step >> 4, s = step % 16, root = M.root + [0, 0, 5, 0][bar % 4];
+        const sw = (s % 4 === 2) ? beat * .08 : 0, tt = t + sw;   // swing the off-beats
+        const riff = [[0, 0, .9], [3, 3, .3], [4, 0, .4], [6, 3, .4], [8, 5, .5], [10, 6, .2], [11, 5, .3], [12, 3, .5], [14, -2, .5]];
+        for(const [at, n, len] of riff) if(s === at){ const m = root + n, bend = at === 8 && bar % 2 === 1;
+          note(b, 'sawtooth', hz(bend ? m - 1 : m), s % 4 === 2 ? tt : t, beat * len, .055, {drive: true, slide: bend ? hz(m) : undefined, slideT: .12, r: .04});
+          note(b, 'sawtooth', hz(m + 7), s % 4 === 2 ? tt : t, beat * len, .03, {drive: true, r: .04, detune: 5}); }
+        if(s === 0 || s === 10) kick(b, t, .45);
+        if(s === 4 || s === 12) snare(b, t);
+        if(s % 2 === 0) hit(b, s % 4 === 2 ? tt : t, s % 4 ? .02 : .035, .03, 6500);
+        if(s === 0 && bar % 4 === 3) note(b, 'sawtooth', hz(root - 12), t, beat * 4, .04, {cut: 300, a: .05, r: 1});
+      }},
+    dungeon4: {bpm: 76, root: 49, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 5, 3, 1], vol: 1, delay: .9, fb: .48, fxcut: 1500, drive: 18, drvcut: 1600,  // the dirge: tremolo guitar over held chords, a dark choir and war toms
+      play(step, t, M, b){
+        const beat = 60 / M.bpm, bar = step >> 4, s = step % 16, ch = chord(M, M.prog[Math.floor(bar / 2) % 4]);
+        if(s === 0 && bar % 2 === 0) power(b, ch[0] - 12, t, beat * 7.8, .03);
+        // tremolo picking: fast, quiet, distorted repeats of a slow melody
+        const line = [ch[2], ch[1], ch[0], ch[1]][Math.floor(s / 4)] + (bar % 2 ? 0 : 12);
+        note(b, 'sawtooth', hz(line), t, beat * .22, .016, {drive: true, r: .02});
+        if(s === 0 && bar % 2 === 0) ch.forEach((m, i) => note(b, 'sawtooth', hz(m), t, beat * 8.2, .007, {a: 1.5, r: 1.5, cut: 900, vib: 4.5, detune: (i - 1) * 9, wet: .6}));
+        if(s === 0 || s === 6 || s === 8) note(b, 'sine', s === 6 ? 120 : 95, t, .5, .32, {slide: s === 6 ? 62 : 50, slideT: .18, pluck: .13, wet: .3});
+        if(s === 12) { snare(b, t); hit(b, t, .04, .3, 1100, true, {wet: .7}); }
+        if(s % 8 === 4) hit(b, t, .02, .04, 7000);
       }},
     abyss: {bpm: 54, root: 40, scale: [0, 1, 3, 5, 6, 8, 10], prog: [0, 0, 1, 0, 4, 4, 1, 6], vol: .9, delay: 1.1, fb: .5, fxcut: 1000, drive: 20, drvcut: 1200,
       play(step, t, M, b){ MOODS.dungeon.play(step, t, M, b); if(step % 64 === 32) note(b, 'sawtooth', hz(M.root - 23), t, 6, .03, {a: 2, r: 3, cut: 200}); }},
@@ -4338,7 +4378,10 @@ const Music = (() => {
       if(r.mon.uid !== fightUid){ fightUid = r.mon.uid; fightN = (fightN + 1) % FIGHTS.length; }
       return FIGHTS[fightN];
     }
-    return r.abyss ? 'abyss' : 'dungeon';
+    if(r.abyss) return 'abyss';
+    // a new floor moves on to the next dungeon track
+    if(r.depth !== dunDepth){ if(dunDepth !== null) dunN = (dunN + 1) % DUNGEONS.length; dunDepth = r.depth; }
+    return DUNGEONS[dunN];
   }
   function switchTo(w){
     const isFight = k => k === 'champion' || (k || '').startsWith('fight'), now = ctx.currentTime, fast = isFight(w) || isFight(cur);
@@ -4355,6 +4398,8 @@ const Music = (() => {
     const w = moodNow(); if(w !== cur) switchTo(w);
     if(!cur) return;
     const M = MOODS[cur], sd = 60 / M.bpm / 4;
+    // and a long stay on one floor moves on too, after about two minutes
+    if(DUNGEONS.includes(cur) && step >= 40 * 16 && step % 16 === 0){ dunN = (dunN + 1) % DUNGEONS.length; switchTo(DUNGEONS[dunN]); return; }
     if(nextT < ctx.currentTime) nextT = ctx.currentTime + .05; // skip ahead after a stall instead of a burst of notes
     while(nextT < ctx.currentTime + .25){ M.play(step, nextT, M, bus[cur]); step++; nextT += sd; }
   }
