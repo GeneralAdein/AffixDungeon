@@ -4131,7 +4131,7 @@ const Music = (() => {
         if(ps < 32 && phrase[ps] !== undefined){ const k = phrase[ps], m = M.root + 12 + pent[k % 5] + 12 * Math.floor(k / 5) - 12;
           note(b, 'sine', hz(m), t, beat * 1.6, .05, {a: .04, r: .4, vib: 5, wet: .55}); }
       }},
-    dungeon: {bpm: 62, root: 45, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 0, 1, 0, 5, 5, 1, 6], vol: 1.05, delay: .7, fb: .4, fxcut: 1400, drive: 14, drvcut: 1500,  // grungy: a slow, distorted sludge riff
+    dungeon: {bpm: 80, root: 45, scale: [0, 1, 3, 5, 7, 8, 10], prog: [0, 0, 1, 0, 5, 5, 1, 6], vol: 1.05, delay: .7, fb: .4, fxcut: 1400, drive: 14, drvcut: 1500,  // grungy: a slow, distorted sludge riff
       play(step, t, M, b){
         const beat = 60 / M.bpm, bar = step >> 4, s = step % 16, root = M.root + sc(M, M.prog[bar % M.prog.length]);
         // the riff: a heavy power chord, a held chug, and a slide down at the end of every other bar
