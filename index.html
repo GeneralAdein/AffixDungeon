@@ -779,6 +779,8 @@ svg[shape-rendering]{display:block}
 .pswitch.on{background:var(--good)}
 .pswitch.on i{left:22px;background:#fff}
 .prefs .linkbtn{align-self:flex-start}
+.waywarn .tipk{color:var(--rare)}
+.waywarn .lead{margin-top:8px}
 /* ===== Tutorial tips ===== */
 .tip{position:fixed;inset:0;z-index:65;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(6,5,9,.45)}
 .tipbox{width:100%;max-width:460px;background:#16151e;border:3px solid #f2c444;box-shadow:0 0 0 3px #16151e,0 0 0 5px #5a5446;padding:12px 14px;margin-bottom:8px;color:#ebe2cc}
@@ -4058,6 +4060,19 @@ function nextStep(){
   if(r.fled){ r.fled = false; const fl = r.floor; if(fl && fl.prev && fl.prev !== fl.cur){ const b = fl.prev; fl.prev = fl.cur; fl.cur = b; r.msg = 'You escape back the way you came.'; } }
   save(); render(); $('#view').scrollTop = 0;
 }
+function goDeeper(){
+  const r = R(); closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
+  const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
+  runTrack().deepest = Math.max(runTrack().deepest, r.depth);
+  newFloor(r.depth); save(); render(); $('#view').scrollTop = 0; floorIntro();
+}
+function waystoneWarn(r){
+  const d = r.depth, where = r.abyss ? 'the Abyss’s' : 'this';
+  return `<div class="grab"></div><div class="waywarn"><div class="tipk">Waystone</div><h3 class="sheet-title">The Waystone of floor ${d} isn’t set yet</h3>
+    <p class="lead">Waystones only attune when you walk back into Emberhold alive. Head home now and it’s yours: future runs can start on floor ${d+1} of ${where} dungeon, for a toll.</p>
+    <p class="lead">Go deeper and die, and you’ll have to fight your way back to floor ${d} to set it.</p></div>
+    <div class="sheet-actions"><button class="btn primary" data-act="toTown">Head home and set it</button><button class="btn" data-act="descendAnyway">Go deeper anyway</button></div>`;
+}
 function goTown(msg){
   S.run = null; S.screen = 'town'; S.shop = genShop(); busy = false;
   closeSheet(); save(); render(); $('#view').scrollTop = 0;
@@ -4221,10 +4236,11 @@ const ACT = {
   drinkLoot: a => drinkLoot(a),
   takeAll: () => { const r = R(); if(!r.loot.some(roomFor)){ if(r.loot.every(isPotion)){ toast(potionFullMsg()); openSheet(packSheet('potion'),'pack'); return; } toast('Your bag is full. Sell, drop or equip something to make room.'); openSheet(bagSheet(),'bag'); return; } let n = 0; for(const it of r.loot.slice()){ if(roomFor(it)){ r.loot.splice(r.loot.indexOf(it),1); addToBag(it); n++; } } if(!r.loot.length) r.tookAll = true; save(); closeSheet(); render(); if(r.loot.length){ if(r.loot.every(isPotion)){ toast(`Took ${n}. ${potionFullMsg()}`); } else { toast(`Took ${n}. Your bag is full now.`); openSheet(bagSheet(),'bag'); } } else toast(`Took ${n} item${n===1?'':'s'}.`); },
   next: () => nextStep(),
-  descend: () => { const r = R(); if(moving) return; closeSheet(); r.depth++; S.hero.deepest = Math.max(S.hero.deepest, r.depth);
-    const hs = heroStats(), v = Math.min(hs.maxhp - S.hero.hp, Math.round(hs.maxhp*.1)); S.hero.hp += v;
-    runTrack().deepest = Math.max(runTrack().deepest, r.depth);
-    newFloor(r.depth); save(); render(); $('#view').scrollTop = 0; floorIntro(); },
+  descend: () => { const r = R(); if(moving) return;
+    // leaving a 10th floor whose Waystone isn't set yet: remind them it only sets if they get home alive
+    if(r.depth % 10 === 0 && !waystones(r.abyss).includes(r.depth) && !(r.wayOk||{})[r.depth]) return openSheet(waystoneWarn(r), 'waywarn');
+    goDeeper(); },
+  descendAnyway: () => { const r = R(); r.wayOk = r.wayOk || {}; r.wayOk[r.depth] = 1; goDeeper(); },
   goRoom: a => goRoom(a),
   fightRoom: () => { const r = R(); if(r && r.floor.rooms[r.floor.cur].t==='mon') startEncounter(r.floor.cur); },
   retreat: () => retreat(),
