@@ -1675,7 +1675,7 @@ const IPRE = {
   arcane:{name:'Arcane',slots:['head','body','jewel'],bases:['staff'],w:6,min:1,add:{spell:15},vm:1.4},
   lucky:{name:'Lucky',slots:['jewel','hands'],w:5,min:2,add:{crit:5,dodge:3},vm:1.4},
   vampiric:{name:'Vampiric',slots:['weapon','ring'],w:4,min:3,add:{lifesteal:8},vm:1.7},
-  blessed:{name:'Blessed',slots:['gear'],w:3,min:3,add:{maxhp:4,regen:1},scale:true,vm:1.6},
+  blessed:{name:'Blessed',slots:['gear'],w:3,min:3,add:{maxhp:4,regen:1},scale:true,noscale:['regen'],vm:1.6},
   masterwork:{smith:1,name:'Masterwork',slots:['weapon','armor'],w:3,min:4,mul:{atk:1.25,def:1.25},add:{spd:4},vm:1.9},
   ancient:{smith:2,name:'Ancient',slots:['weapon','armor'],w:2,min:6,mul:{atk:1.5,def:1.5},vm:2.2},
   cursed:{name:'Cursed',slots:['weapon','jewel'],w:4,min:2,mul:{atk:1.2},add:{crit:8,maxhp:-12},vm:.9},
@@ -1871,7 +1871,7 @@ function load(){
 /* ============ stats ============ */
 function applyMods(s, a, scale=1){
   if(a.mul) for(const k in a.mul){ if(s[k] !== undefined) s[k] *= a.mul[k]; }
-  if(a.add) for(const k in a.add){ s[k] = (s[k]||0) + a.add[k]*(a.scale ? scale : 1); }
+  if(a.add) for(const k in a.add){ s[k] = (s[k]||0) + a.add[k]*(a.scale && !(a.noscale||[]).includes(k) ? scale : 1); }
   if(a.flag) for(const f of a.flag) s[f] = true;
 }
 /* a typical monster's base stats at each home floor */
@@ -1933,7 +1933,7 @@ const ATTRS = [['str','Strength'],['dex','Dexterity'],['vit','Vitality'],['int',
 const ATTR_KEYS = ATTRS.map(a => a[0]);
 const POINTS_PER_LEVEL = 3;
 const r1 = v => Math.round(v*10)/10;
-const CAPS = {crit:[0,75],dodge:[0,60],block:[0,60],gold:[-90,1e9],xp:[-90,1e9],maxhp:[10,1e9],atk:[1,1e9],def:[0,1e9],spd:[30,1e9],lifesteal:[0,1e9],thorns:[0,1e9],fire:[0,1e9],spell:[-90,1e9]};
+const CAPS = {crit:[0,75],dodge:[0,60],block:[0,60],gold:[-90,1e9],xp:[-90,1e9],maxhp:[10,1e9],atk:[1,1e9],def:[0,1e9],spd:[30,1e9],lifesteal:[0,20],regen:[-50,5],thorns:[0,1e9],fire:[0,1e9],spell:[-90,1e9]};   // life steal and healing per turn are capped so fights stay dangerous
 function heroLedger(){
   const h = S.hero, L = h.lvl, led = {};
   const put = (k, src, v, type, extra={}) => { if(!v) return; (led[k] = led[k]||[]).push(Object.assign({src, v, type}, extra)); };
@@ -2102,7 +2102,7 @@ function stapleLvl(){ return Math.max(1, Math.ceil(shopLvl()/2)); }
 function modLines(a, labels, flags, goodFn, scale=1, has=null){
   const out = [];
   if(a.mul) for(const k in a.mul){ if(has && has[k] === undefined) continue; const p = Math.round((a.mul[k]-1)*100); out.push({t:`${sgn(p)}% ${labels[k]||k}`, good:goodFn(k,p)}); }
-  if(a.add) for(const k in a.add){ const v = Math.round(a.add[k]*(a.scale?scale:1)); out.push({t: k==='regen'&&v<0 ? `Lose ${-v}% health each turn` : `${sgn(v)}${PCT.has(k)?'%':''} ${labels[k]||k}`, good:goodFn(k,v)}); }
+  if(a.add) for(const k in a.add){ const v = Math.round(a.add[k]*(a.scale && !(a.noscale||[]).includes(k) ? scale : 1)); out.push({t: k==='regen'&&v<0 ? `Lose ${-v}% health each turn` : `${sgn(v)}${PCT.has(k)?'%':''} ${labels[k]||k}`, good:goodFn(k,v)}); }
   if(a.flag) for(const f of a.flag) out.push({t:flags[f], good:goodFn(f,1)});
   return out;
 }
