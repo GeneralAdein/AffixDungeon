@@ -3605,7 +3605,10 @@ function enterRoom(){
   }
   if(rm.t==='mon' && !rm.done){ if(rm.m.champion) toast('A champion bars the way to the stairs!'); save(); return startEncounter(fl.cur); }
   save(); updateExplore(true);
+  // reaching the stairs of a 10th floor whose Waystone isn't set: offer to set it now or keep going down
+  if(rm.t==='stairs' && wayUnset(r)){ r.wayOk = r.wayOk || {}; r.wayOk[r.depth] = 1; openSheet(waystoneWarn(r, true), 'waywarn'); }
 }
+const wayUnset = r => r.depth % 10 === 0 && !waystones(r.abyss).includes(r.depth);
 function retreat(){
   const r = R(), fl = r.floor; if(!fl.prev) return;
   const back = fl.prev; fl.prev = fl.cur; fl.cur = back; r.msg = 'You back away the way you came.';
@@ -4066,12 +4069,13 @@ function goDeeper(){
   runTrack().deepest = Math.max(runTrack().deepest, r.depth);
   newFloor(r.depth); save(); render(); $('#view').scrollTop = 0; floorIntro();
 }
-function waystoneWarn(r){
+function waystoneWarn(r, arrived){
   const d = r.depth, where = r.abyss ? 'the Abyss’s' : 'this';
-  return `<div class="grab"></div><div class="waywarn"><div class="tipk">Waystone</div><h3 class="sheet-title">The Waystone of floor ${d} isn’t set yet</h3>
-    <p class="lead">Waystones only attune when you walk back into Emberhold alive. Head home now and it’s yours: future runs can start on floor ${d+1} of ${where} dungeon, for a toll.</p>
-    <p class="lead">Go deeper and die, and you’ll have to fight your way back to floor ${d} to set it.</p></div>
-    <div class="sheet-actions"><button class="btn primary" data-act="toTown">Head home and set it</button><button class="btn" data-act="descendAnyway">Go deeper anyway</button></div>`;
+  return `<div class="grab"></div><div class="waywarn"><div class="tipk">Waystone</div><h3 class="sheet-title">${arrived ? `You’ve found the Waystone of floor ${d}` : `The Waystone of floor ${d} isn’t set yet`}</h3>
+    <p class="lead">Waystones only activate when you walk back into Emberhold alive. Return now and it’s yours: future runs can start on floor ${d+1} of ${where} dungeon, for a toll.</p>
+    <p class="lead">Go down and die, and you’ll have to fight your way back to floor ${d} to activate it.</p></div>
+    <div class="sheet-actions"><button class="btn primary" data-act="toTown">Activate it and return to town</button><button class="btn" data-act="descendAnyway">Go down</button></div>
+    ${arrived ? '<div class="foot" style="margin-top:6px"><button class="linkbtn" data-act="closeSheet">Keep exploring this floor</button></div>' : ''}`;
 }
 function goTown(msg){
   S.run = null; S.screen = 'town'; S.shop = genShop(); busy = false;
@@ -4238,7 +4242,7 @@ const ACT = {
   next: () => nextStep(),
   descend: () => { const r = R(); if(moving) return;
     // leaving a 10th floor whose Waystone isn't set yet: remind them it only sets if they get home alive
-    if(r.depth % 10 === 0 && !waystones(r.abyss).includes(r.depth) && !(r.wayOk||{})[r.depth]) return openSheet(waystoneWarn(r), 'waywarn');
+    if(wayUnset(r) && !(r.wayOk||{})[r.depth]) return openSheet(waystoneWarn(r), 'waywarn');
     goDeeper(); },
   descendAnyway: () => { const r = R(); r.wayOk = r.wayOk || {}; r.wayOk[r.depth] = 1; goDeeper(); },
   goRoom: a => goRoom(a),
